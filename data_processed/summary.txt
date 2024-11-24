@@ -1,0 +1,17 @@
+Quantitative Stats:
+        original_price_INR  discounted_price_INR  overall_review_count
+min               0.000000              0.000000          0.000000e+00
+max          260700.000000         150000.000000          8.062218e+06
+median          299.000000            250.000000          5.100000e+01
+mean            527.526004            370.253865          2.352797e+03
+
+Column Name: genres: 
+Most Frequent: ['Action, Indie']
+Least Frequent: ['Action, Adventure, Casual, Massively Multiplayer, Simulation, Strategy, Free to Play', 'Action, Casual, Simulation, Sports, Strategy, Early Access', 'Action, Adventure, Casual, Indie, Racing, RPG, Simulation, Early Access', 'Adventure, Indie, Massively Multiplayer, RPG, Strategy, Free to Play', 'Indie, Racing, RPG, Simulation, Sports', 'Casual, Indie, Audio Production, Education, Software Training, Utilities, Early Access', 'Action, Casual, Indie, Massively Multiplayer, Free to Play, Early Access', 'Adventure, Simulation, Utilities', 'Action, Adventure, Casual, Indie, Massively Multiplayer, Simulation, Free to Play, Early Access', 'Casual, Indie, Massively Multiplayer, Simulation']
+Number of Categories: 1525
+
+Column Name: developer: 
+Most Frequent: ['Choice of Games']
+Least Frequent: ['Nick Oueijan', 'Josh Presseisen', 'Delarion Games', 'Heroic Games Oy', 'Because Because Games', 'Funkitron', 'Henapokoya', 'JSJstudio', 'RigidCore Games', 'Evan "Solidplasma" Peiperl']
+Number of Categories: 25126
+

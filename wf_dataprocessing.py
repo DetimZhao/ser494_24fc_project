@@ -77,7 +77,7 @@ data_cleaned.rename(columns={'recent_review_%': 'recent_positive_review_percenta
 
 
 # %%
-# DATA CLEANING CONT: CONVERT RELEASE_DATE TO DATETIME, AGE_RESTRICTED TO BOOLEAN
+# DATA CLEANING CONT: CONVERT RELEASE_DATE TO DATETIME
 
 # Convert 'release_date' to datetime dtype for future analysis
 data_cleaned['release_date'] = pd.to_datetime(data_cleaned['release_date'], errors='coerce')
@@ -85,12 +85,7 @@ data_cleaned['release_date'] = pd.to_datetime(data_cleaned['release_date'], erro
 # - Note: When saving to CSV, it will lose the datetime64 format and will need to be explicitly parsed.
 #   - With pandas, parse_dates=['release_date'] can be used when loading to parse the string back into datetime.
 
-# Convert 'age_restricted' to boolean dtype for future analysis, convert 0/1 to True/False
-data_cleaned['age_restricted'] = data_cleaned['age_restricted'].apply(lambda x: True if x == 1 else False)
-
 # data_cleaned['release_date'].head() # Check the first few rows of the release_date column for changes
-# data_cleaned['age_restricted'].head() # Check the first few rows of the age_restricted column for changes   
-
 
 
 
@@ -376,7 +371,6 @@ data_cleaned.info()
 data_cleaned.isnull().sum()
 
 
-
 # %% 
 # SAVE CLEANED DATA TO A NEW CSV FILE
 
@@ -394,3 +388,31 @@ except Exception as e:
     print(e)
 
 # %%
+
+def generate_stats():
+    quantitative_stats = data_cleaned[['original_price_INR', 'discounted_price_INR', 'overall_review_count']].agg(['min', 'max', 'median', 'mean'])
+    print(quantitative_stats, "\n")
+    
+    # Save to file
+    stats_file_name = 'summary.txt'
+    
+    # File path and filename to save to
+    stats_file_path = f'data_processed/{stats_file_name}'
+    
+    # Save the summary stats to a file
+    try:
+        with open(stats_file_path, 'w') as f:
+            f.write(f"Quantitative Stats:\n{quantitative_stats}\n\n")
+            for column in ['genres', 'developer']:
+                category_counts = data[column].value_counts()
+                most_frequent = category_counts[category_counts == category_counts.max()].index.tolist()
+                least_frequent = category_counts[category_counts == category_counts.min()].index.tolist()[:10]  # Limit to 20 for brevity
+                f.write(f"Column Name: {column}: \nMost Frequent: {most_frequent}\nLeast Frequent: {least_frequent}\nNumber of Categories: {category_counts.count()}\n\n")
+        print(f"\nSummary Stats saved successfully to path: {stats_file_path}")
+    except Exception as e:
+        print(f"\nError saving Summary Stats to path: {stats_file_path}")
+        print(e)
+
+if __name__ == '__main__':
+    generate_stats()
+    # TODO - CLEAN UP THIS FILE TO BE MORE READABLE AND ORGANIZED (FUNCTIONS, COMMENTS, ETC.)

@@ -73,7 +73,7 @@ correlation_matrix = data_visualization[quantitative_columns].corr().round(2)
 
 # Display the correlation matrix
 formatted_corr_matrix = correlation_matrix.to_string() 
-print(formatted_corr_matrix)
+# print(formatted_corr_matrix)
 
 # File path and filename to save to
 corr_matrix_file_name = 'correlations.txt'
@@ -88,6 +88,18 @@ except Exception as e:
     print(f"\nError saving Correlation Matrix to path: {corr_matrix_file_path}")
     print(e)
 
+# File path and filename to save to
+corr_matrix_heatmap_file_name = 'correlations.png'
+corr_matrix_heatmap_file_path = f'visuals/{corr_matrix_heatmap_file_name}'
+
+# Save the correlation matrix heatmap to a file
+# Create a heatmap to visualize the correlations (half matrix)
+plt.figure(figsize=(12, 10))  
+mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))  
+sns.heatmap(correlation_matrix, mask=mask, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)  
+plt.title("Correlation Matrix (Quantitative Features)")  
+plt.savefig(corr_matrix_heatmap_file_path)
+plt.show()  
 
 
 # %%
@@ -119,8 +131,6 @@ def create_and_save_scatterplot():
             plt.savefig(f'visuals/scatterplot_{quantitative_columns[i]} vs {quantitative_columns[j]}.png')
             print(f"Saved scatter plot: scatterplot_{quantitative_columns[i]} vs {quantitative_columns[j]}.png\n")
 
-create_and_save_scatterplot() # Uncomment to create scatter plots
-
 
 # %%
 # CREATE BAR GRAPHS FOR QUALITATIVE COLUMNS
@@ -151,8 +161,6 @@ def create_and_save_bar_graphs():
         plt.savefig(f'visuals/bar_graph_{col}.png')
         print(f"Saved bar graph: bar_graph_{col}.png\n")
 
-create_and_save_bar_graphs() # Uncomment to create bar graphs
-
 
 
 # %%
@@ -166,12 +174,14 @@ def create_and_save_histograms():
     plt.title('Distribution of Overall Positive Review Percentage', fontsize=14)
     plt.xlabel('Overall Positive Review Percentage (%)', fontsize=12)
     plt.ylabel('Frequency', fontsize=12)
-    plt.show()
     plt.savefig('visuals/histogram_positive_review_percentage.png')
+    plt.show()
     print("Saved histogram: histogram_positive_review_percentage.png\n")
-
-create_and_save_histograms() # Uncomment to create histogram
-
 
 
 # %%
+
+if __name__ == '__main__':
+    create_and_save_scatterplot() # Uncomment to create scatter plots
+    create_and_save_bar_graphs() # Uncomment to create bar graphs
+    create_and_save_histograms() # Uncomment to create histogram

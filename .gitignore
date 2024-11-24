@@ -43,5 +43,16 @@ Temporary Items
 
 ### PROJECT RELATED ###
 
+# Ignore virtual environment
+.venv
+
 # Ignore visualizations 
-visuals/
+visuals/*.png
+
+# Ignore tests
+tests/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
