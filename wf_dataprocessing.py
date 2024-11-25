@@ -4,7 +4,6 @@ import ssl
 
 import pandas as pd
 import nltk
-from nltk import download
 from nltk.corpus import stopwords, wordnet
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
@@ -22,7 +21,7 @@ except AttributeError:
     pass
 else:
     ssl._create_default_https_context = _create_unverified_https_context
-
+print("Downloading NLTK resources... if not already downloaded.")
 # Download NLTK resources if not already done
 nltk.download('stopwords')                   # Download stopwords for text processing
 nltk.download('punkt')                       # Download tokenizer models
@@ -498,6 +497,7 @@ def clean_review_content(text, min_meaningful_words=2):
     Cleans individual review text by:
     - Handling NaNs if any
     - Removing Steam markup tags
+    - Removing non-ASCII characters
     - Removing punctuation
     - Removing excessive whitespace
     - Converting text to lowercase
@@ -517,14 +517,11 @@ def clean_review_content(text, min_meaningful_words=2):
     """
     if pd.isnull(text):  # Handle potential NaNs
         return text
-    # Remove Steam markup tags (e.g., [b], [i], [url], [img]) which are square brackets with letters inside
-    text = re.sub(r'\[.*?\]', '', text)
-    # Remove punctuation
-    text = re.sub(r'[^\w\s]', '', text)
-    # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
-    # Convert to lowercase
-    text = text.lower()
+    text = re.sub(r'\[.*?\]', '', text)         # Remove Steam markup tags (e.g., [b], [i], [url], [img])
+    text = re.sub(r'[^\x00-\x7F]+', ' ', text)  # Remove non-ASCII characters
+    text = re.sub(r'[^\w\s]', '', text)         # Remove punctuation
+    text = re.sub(r'\s+', ' ', text).strip()    # Remove excessive whitespace
+    text = text.lower()                         # Convert to lowercase
 
     # Tokenize and remove stopwords
     words = word_tokenize(text)
@@ -668,16 +665,21 @@ def clean_steam_reviews_data():
 
         # Drop columns that are not needed for analysis
         irrelevant_cols = [
+            'steamid',                      # User ID of each steam reviewer
+            'language',                     # Only English reviews anyways
             'timestamp_dev_responded',      # Missing and rarely useful
             'developer_response',           # Only present in a small subset
-            'steam_china_location',         # Likely irrelevant for global analysis
-            'hidden_in_steam_china',        # Steam China-specific
             'primarily_steam_deck',         # Steam Deck-specific
             'deck_playtime_at_review',      # Not relevant 
             'written_during_early_access',  # Not relevant
         ]
         data_cleaned.drop(columns=irrelevant_cols, inplace=True)
 
+        # Old dataset had these columns, so drop them if they exist
+        if 'steam_china_location' in data_cleaned.columns:
+            data_cleaned.drop(columns=['steam_china_location'], inplace=True)
+        if 'hidden_in_steam_china' in data_cleaned.columns:
+            data_cleaned.drop(columns=['hidden_in_steam_china'], inplace=True)
 
         # DROP ROWS WITH MISSING REVIEW TEXT AND PLAYTIME
         data_cleaned = data_cleaned.dropna(subset=['review'])  # only 479 out of 136511 missing
@@ -693,7 +695,42 @@ def clean_steam_reviews_data():
         # FEATURE ENGINEERING: ADD DERIVED FEATURES, SUCH AS AGE OF REVIEW AND PLAYTIME
         now = pd.Timestamp.now()
         data_cleaned['review_age_days'] = (now - data_cleaned['timestamp_created']).dt.days
+        data_cleaned['updated_review_age_days'] = (now - data_cleaned['timestamp_updated']).dt.days
         data_cleaned['last_played_days'] = (now - data_cleaned['last_played']).dt.days
+
+
+        # DROP timestamp_created, timestamp_updated, last_played COLUMNS 
+        data_cleaned.drop(columns=['timestamp_created', 'timestamp_updated', 'last_played'])
+
+
+        # FEATURE ENGINEERING: ENGAGMENT METRICS, PLAYTIME PERCENTILE, USER EXPERIENCE METRICS
+
+        # Engagement Metrics
+        # - Engagement Ratio: votes_up / (votes_up + votes_funny) 
+        # - It helps differentiate reviews that are purely informative from those that are entertaining
+        data_cleaned['engagement_ratio'] = data_cleaned['votes_up'] / (
+            data_cleaned['votes_up'] + data_cleaned['votes_funny'] + 1e-5  # Avoid division by zero
+        )
+        
+        # Playtime Percentile
+        # - Rank the playtime_forever values and calculate the percentile
+        # - This helps understand how much a user has played a game compared to others
+        # - High playtime percentiles may suggest users with deeper experience in the game
+
+        # Playtime percentiles for user experience at the time of review. 
+        # - Holistic measure, stable metric, but could introduce bias. 
+        data_cleaned['playtime_percentile_review'] = data_cleaned.groupby('app_id')['playtime_at_review'].rank(pct=True)
+        
+        # Playtime percentiles for total engagement
+        # - Contextual metric, Sentiment correlation, Temporal consistency, but less comphehensive.
+        data_cleaned['playtime_percentile_total'] = data_cleaned.groupby('app_id')['playtime_forever'].rank(pct=True)
+
+        # Check playtime percentiles for a specific game
+        # sample_game = data_cleaned[data_cleaned['app_id'] == data_cleaned['app_id'].iloc[0]]
+        # print(sample_game[['playtime_at_review', 'playtime_percentile_review', 'playtime_forever', 'playtime_percentile_total']].head())
+
+        # Print head to verify
+        # print(data_cleaned[['engagement_ratio', 'playtime_percentile']].head())
 
         return data_cleaned
 
@@ -702,14 +739,14 @@ def clean_steam_reviews_data():
     # %%
     # APPLY BASIC TRANSFORMATIONS AND FEATURE ENGINEERING TO THE ENTIRE REVIEWS DATA
     data_cleaned = transform_reviews_data(data)
-    # print(f"Data shape after initial cleaning: {data_cleaned.shape}\n") # (135980, 22)
+    # print(f"\nData shape after initial cleaning: {data_cleaned.shape}\n") # (119827, 24)
 
 
 
     # %%
     # CONT. DATA CLEANING: FILTER DATA BY WEIGHTED VOTE SCORE
     data_cleaned = filter_reviews_by_game(data_cleaned) 
-    # print(f"Data shape after filtering by weighted vote score: {data_cleaned.shape}\n") # (91572, 22)
+    # print(f"Data shape after filtering by weighted vote score: {data_cleaned.shape}\n") # (76279, 24)
 
 
 
@@ -719,11 +756,10 @@ def clean_steam_reviews_data():
     # Clean the 'review' text
     data_cleaned['review'] = data_cleaned['review'].apply(clean_review_content)
     
-    # Drop rows where reviews are None (filtered out by the meaningful word check)
+    data_cleaned = data_cleaned[data_cleaned['review'].str.strip() != ''] # Remove empty strings
     data_cleaned = data_cleaned.dropna(subset=['review'])
-    # print(f"Data shape after cleaning review content: {data_cleaned.shape}\n") # (74965, 22)
+    # print(f"Data shape after cleaning review content: {data_cleaned.shape}\n") # (61709, 24)
 
-    
 
 
     # CONT. DATA CLEANING: LEMMATIZE REVIEW
@@ -733,13 +769,12 @@ def clean_steam_reviews_data():
     data_temp['original_review'] = data_temp['review']
 
     # Apply the lemmatization function to 'review'
-    print("Lemmatizing review content... PLEASE WAIT...\n")
+    print("Lemmatizing review content... THIS MAY TAKE A WHILE, PLEASE WAIT...\n")
     data_cleaned['review'] = data_cleaned['review'].apply(lemmatize_review_with_pos)
     print("Lemmatization complete!\n")
 
     # inspect_reviews(data_temp, data_cleaned) # Inspect random samples of the lemmtized reviews
-    # print(f"Data shape after lemmatizing review content: {data_cleaned.shape}\n") # (74965, 22)
-
+    # print(f"Data shape after lemmatizing review content: {data_cleaned.shape}\n") # (61709, 24)
 
 
 
@@ -752,37 +787,17 @@ def clean_steam_reviews_data():
     # Inspect sentiment distribution
     # print(data_cleaned[['compound', 'positive', 'negative', 'neutral']].describe())
     # print(data_cleaned.head())
-    # print(f"Data shape after extracting sentiment scores: {data_cleaned.shape}\n") # (74965, 26)
-
-
-    # FEATURE ENGINEERING: ENGAGMENT METRICS, PLAYTIME PERCENTILE, USER EXPERIENCE METRICS
-
-    # Engagement Metrics
-    # - Engagement Ratio: votes_up / (votes_up + votes_funny) 
-    # - It helps differentiate reviews that are purely informative from those that are entertaining
-    data_cleaned['engagement_ratio'] = data_cleaned['votes_up'] / (
-        data_cleaned['votes_up'] + data_cleaned['votes_funny'] + 1e-5  # Avoid division by zero
-    )
-    
-    # Playtime Percentile
-    # - Rank the playtime_forever values and calculate the percentile
-    # - This helps understand how much a user has played a game compared to others
-    # - High playtime percentiles may suggest users with deeper experience in the game
-    data_cleaned['playtime_percentile'] = data_cleaned['playtime_forever'].rank(pct=True)
-    
-    # User Experience Metrics
-    # - Expertise Score: num_reviews / (num_games_owned)
-    # - This helps capture how often a user writes reviews compared to their library siz
-    data_cleaned['expertise_score'] = data_cleaned['num_reviews'] / (
-        data_cleaned['num_games_owned'] + 1e-5  # Avoid division by zero
-    )
-    
-    # Print head to verify
-    # print(data_cleaned[['engagement_ratio', 'playtime_percentile', 'expertise_score']].head())
-    print(f"Data shape after adding engagement metrics: {data_cleaned.shape}\n") # (74965, 29)
+    # print(f"Data shape after extracting sentiment scores: {data_cleaned.shape}\n") # (61709, 28)
 
 
 
+    # CHECK FOR EMPTY REVIEWS AFTER CLEANING
+
+    # empty_reviews_count = data_cleaned['review'].isnull().sum() + (data_cleaned['review'] == '').sum()
+    # if empty_reviews_count > 0:
+    #     print(f"There are {empty_reviews_count} empty reviews remaining. Further cleaning required.")
+    # else:
+    #     print("No empty reviews found. Dataset is clean.")
 
 
     # FINAL CHECK ON THE CLEANED DATA
