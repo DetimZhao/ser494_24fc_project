@@ -1,0 +1,21 @@
+Quantitative Stats:
+         awards  overall_review_%  overall_review_count
+count  42497.00          40020.00              40020.00
+mean       0.31             77.16               2500.62
+std        1.26             17.67              48879.80
+min        0.00              0.00                 10.00
+25%        0.00             68.00                 21.00
+50%        0.00             81.00                 59.00
+75%        0.00             91.00                282.00
+max       41.00            100.00            8062218.00
+
+Column Name: genres: 
+Most Frequent: ['Action, Indie']
+Least Frequent: ['Action, Adventure, Casual, Massively Multiplayer, Simulation, Strategy, Free to Play', 'Action, Casual, Simulation, Sports, Strategy, Early Access', 'Action, Adventure, Casual, Indie, Racing, RPG, Simulation, Early Access', 'Adventure, Indie, Massively Multiplayer, RPG, Strategy, Free to Play', 'Indie, Racing, RPG, Simulation, Sports', 'Casual, Indie, Audio Production, Education, Software Training, Utilities, Early Access', 'Action, Casual, Indie, Massively Multiplayer, Free to Play, Early Access', 'Adventure, Simulation, Utilities', 'Action, Adventure, Casual, Indie, Massively Multiplayer, Simulation, Free to Play, Early Access', 'Casual, Indie, Massively Multiplayer, Simulation']
+Number of Categories: 1525
+
+Column Name: developer: 
+Most Frequent: ['Choice of Games']
+Least Frequent: ['Nick Oueijan', 'Josh Presseisen', 'Delarion Games', 'Heroic Games Oy', 'Because Because Games', 'Funkitron', 'Henapokoya', 'JSJstudio', 'RigidCore Games', 'Evan "Solidplasma" Peiperl']
+Number of Categories: 25126
+

@@ -1,0 +1,21 @@
+Quantitative Stats:
+        votes_up  votes_funny  weighted_vote_score
+count  136511.00    136511.00            136511.00
+mean        7.72         0.95                 0.20
+std       101.69        18.81                 0.27
+min         0.00         0.00                 0.00
+25%         0.00         0.00                 0.00
+50%         0.00         0.00                 0.00
+75%         1.00         0.00                 0.50
+max     11098.00      3321.00                 0.98
+
+Column Name: language: 
+Most Frequent: ['english']
+Least Frequent: ['english']
+Number of Categories: 1
+
+Column Name: steam_purchase: 
+Most Frequent: [True]
+Least Frequent: [False]
+Number of Categories: 2
+
