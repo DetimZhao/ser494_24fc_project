@@ -9,8 +9,6 @@ import pandas as pd
 
 import wf_config as config
 
-config.log_section("CONVERT ALL REVIEW JSONs TO ONE CSV")
-
 def convert_reviews_to_csv(input_folder, output_csv):
     """
     Combines all review JSON files into a single CSV file using pandas.
@@ -93,6 +91,7 @@ def convert_reviews_to_csv(input_folder, output_csv):
 
     
 def main():
+    config.log_section("CONVERT ALL REVIEW JSONs TO ONE CSV")
     # Define input folder and output CSV paths
     input_folder = os.path.join(config.DATA_GEN_FOLDER, "data")  # Folder with review JSONs
     output_csv = os.path.join(config.STEAM_REVIEWS_DATA)  # Output is named 'combined_reviews.csv'

@@ -86,10 +86,7 @@ def calculate_sample_size(confidence_level=0.95, margin_of_error=0.05, proportio
     return math.ceil(sample_size)
 
 
-
-
-if __name__ == "__main__":
-
+def main():
     config.log_section("FILTERING APP IDs BASED ON MINIMUM REVIEW COUNT...")
 
     # Default path to the cleaned dataset in this project is found in 'data_processed/steam-store-data-cleaned.csv'
@@ -112,5 +109,9 @@ if __name__ == "__main__":
         sample_size=sample_size,        # Number of app IDs to sample, calculated based on data
         random_state=47                 # Seed for reproducibility (42 is common but I use 47 in my project)
     )
+
+if __name__ == "__main__":
+    main()
+
 
 

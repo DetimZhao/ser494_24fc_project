@@ -11,7 +11,7 @@ import logging
 
 import steamreviews
 
-from wf_config import log_section
+import wf_config as config
 
 def set_working_directory():
     """ 
@@ -90,14 +90,50 @@ def log_execution_time(start_time):
     print(f"Total elasped time of fetching reviews: {elapsed_time:.2f} seconds.")
 
 
-if __name__ == '__main__':
-    log_section("SETUP TO FETCH REVIEWS")
+def reviews_already_fetched(data_folder, processed_file_prefix="idprocessed_on"):
+    """
+    Checks if review data has already been fetched by verifying the existence
+    of JSON review files and a processed indicator file in the data folder.
+
+    Args:
+        data_folder (str): Path to the folder containing the JSON review files.
+        processed_file_prefix (str): Prefix of the processed indicator file.
+
+    Returns:
+        bool: True if both JSON files and a processed indicator file exist, False otherwise.
+    """
+    # Check for the existence of JSON files in the data folder
+    json_files_exist = any(f.endswith('.json') for f in os.listdir(data_folder))
+    if not json_files_exist:
+        logging.info(f"No JSON review files found in {data_folder}.")
+        return False
+
+    # Check for the existence of a processed indicator file
+    processed_files_exist = any(f.startswith(processed_file_prefix) for f in os.listdir(data_folder))
+    if not processed_files_exist:
+        logging.info(f"No processed indicator file found in {data_folder}.")
+        return False
+
+    # Both JSON files and the processed indicator file exist
+    logging.info(f"Both JSON review files and processed indicator file exist in {data_folder}.")
+    return True
+
+
+def main():
+    config.log_section("SETUP TO FETCH REVIEWS")
+
+    output_data = os.path.join(config.DATA_GEN_FOLDER, "data")  # Folder with review JSONs
+
+    # Check if reviews have already been fetched
+    if reviews_already_fetched(output_data):
+        print("Reviews already fetched. Skipping fetching process.")
+        return  # Exit early    
 
     # Record the start time within main
     start_time = time.time()
 
     # Register the log_execution_time to run upon script exit
-    atexit.register(log_execution_time, start_time)
+    # atexit.register(log_execution_time, start_time) # Uncomment this line to log the execution time
 
     # Store the original directory
     original_directory = os.getcwd()
@@ -110,16 +146,18 @@ if __name__ == '__main__':
     logging.info(f"Fetching reviews for the past {day_range} days...")
 
     try:
-        log_section("FETCHING REVIEWS FROM STEAM API...")
+        config.log_section("FETCHING REVIEWS FROM STEAM API...")
 
         # Fetch reviews with the specified day range
         fetch_reviews(day_range=day_range)
 
         # Log completion of the fetching process
-        log_section("FETCHING PROCESS DONE")
+        config.log_section("FETCHING PROCESS DONE")
     finally:
         # Reset the directory back to original
         reset_working_directory(original_directory)
 
     logging.info("COMPLETE FETCHING PROCESS DONE.")
 
+if __name__ == '__main__':
+    main()

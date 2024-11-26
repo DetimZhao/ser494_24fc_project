@@ -56,6 +56,7 @@ def clean_steam_store_data():
     Returns:
         - pd.DataFrame: The cleaned Steam Store dataset.
     """
+    config.log_section("CLEAN STEAM STORE DATA")
     # %% 
     # LOAD DATA AND INITIAL CHECK OF THE DATASET
 
@@ -302,8 +303,8 @@ def clean_steam_store_data():
     data_cleaned = data_cleaned.drop(columns=['content_descriptor_tags', 'recent_review', 'recent_positive_review_percentage', 'recent_review_count'])
 
     # Check the updated data to ensure the columns are dropped
-    data_cleaned.info()
-    data_cleaned.isnull().sum() # Check missing values so far
+    # data_cleaned.info()
+    # data_cleaned.isnull().sum() # Check missing values so far
 
 
 
@@ -420,8 +421,8 @@ def clean_steam_store_data():
     # Final check on the cleaned data
     # data_cleaned.shape
     # print(f"Shape of data after cleaning: {data_cleaned.shape}\n") # (41975, 20)
-    data_cleaned.info()
-    data_cleaned.isnull().sum()
+    # data_cleaned.info()
+    # data_cleaned.isnull().sum()
 
 
     # %% 
@@ -460,6 +461,8 @@ def generate_summary_stats(input_data, output_file, quantitative_cols, qualitati
     except Exception as e:
         print(f"\nError saving Summary Stats to path: {stats_file_path}")
         print(e)
+
+
 
 def filter_reviews_by_game(input_data):
     """
@@ -644,6 +647,22 @@ def save_to_csv(input_data, output_file):
 
 
 def clean_steam_reviews_data():
+    """
+    Clean the Steam reviews dataset by:
+        - Dropping irrelevant columns that are not needed for analysis.
+        - Removing rows with missing review text and playtime.
+        - Converting epoch timestamps to datetime format.
+        - Adding derived features such as age of review and playtime.
+        - Calculating engagement metrics and playtime percentiles.
+        - Filtering reviews by weighted vote score.
+        - Cleaning the review text and removing empty reviews.
+        - Lemmatizing the review text to standardize word forms.
+        - Adding sentiment scores to the reviews using sentiment analysis.
+        - Saving the cleaned and processed data to a new CSV file.
+
+    Returns:
+        - pd.DataFrame: The cleaned and processed reviews dataset.
+    """
     # %%
     # LOAD DATA AND INITIAL CHECK OF THE DATASET
     data = pd.read_csv(config.STEAM_REVIEWS_DATA)
@@ -769,7 +788,7 @@ def clean_steam_reviews_data():
     data_temp['original_review'] = data_temp['review']
 
     # Apply the lemmatization function to 'review'
-    print("Lemmatizing review content... THIS MAY TAKE A WHILE, PLEASE WAIT...\n")
+    print("\nLemmatizing review content... THIS MAY TAKE A WHILE, PLEASE WAIT...\n")
     data_cleaned['review'] = data_cleaned['review'].apply(lemmatize_review_with_pos)
     print("Lemmatization complete!\n")
 
@@ -781,8 +800,10 @@ def clean_steam_reviews_data():
     # FEATURE ENGINEERING: ADD SENTIMENT SCORES TO THE REVIEWS
 
     # Apply sentiment analysis to reviews
+    print("\nApplying sentiment analysis to reviews... THIS MAY TAKE A WHILE, PLEASE WAIT...\n")
     sentiment_scores = data_cleaned['review'].apply(extract_sentiment_scores)
     data_cleaned = pd.concat([data_cleaned, sentiment_scores], axis=1)
+    print("Sentiment analysis complete!\n")
 
     # Inspect sentiment distribution
     # print(data_cleaned[['compound', 'positive', 'negative', 'neutral']].describe())
@@ -816,25 +837,27 @@ def clean_steam_reviews_data():
 
 
 
+def generate_all_summary_stats():
+    config.log_section("GENERATE SUMMARY STATS")
+    store_data_quant_cols = ['awards', 'overall_review_%', 'overall_review_count']
+    store_data_qual_cols = ['genres', 'developer']
+    generate_summary_stats(config.STEAM_STORE_DATA, config.STORE_DATA_SUMMARY_TEXT_FILE, store_data_quant_cols, store_data_qual_cols)
+
+    review_data_quant_cols = ['votes_up', 'votes_funny', 'weighted_vote_score']
+    review_data_qual_cols = ['language', 'steam_purchase']
+    generate_summary_stats(config.STEAM_REVIEWS_DATA, config.REVIEWS_DATA_SUMMARY_TEXT_FILE, review_data_quant_cols, review_data_qual_cols)
 
 
 
 def main():
+    # Generate summary statistics for both datasets
+    generate_all_summary_stats() # for sake of workflow, just run this function first
 
-    # config.log_section("GENERATE SUMMARY STATS")
-    store_data_quant_cols = ['awards', 'overall_review_%', 'overall_review_count']
-    store_data_qual_cols = ['genres', 'developer']
-    # generate_summary_stats(config.STEAM_STORE_DATA, config.STORE_DATA_SUMMARY_TEXT_FILE, store_data_quant_cols, store_data_qual_cols)
-
-    review_data_quant_cols = ['votes_up', 'votes_funny', 'weighted_vote_score']
-    review_data_qual_cols = ['language', 'steam_purchase']
-    # generate_summary_stats(config.STEAM_REVIEWS_DATA, config.REVIEWS_DATA_SUMMARY_TEXT_FILE, review_data_quant_cols, review_data_qual_cols)
-
-    # config.log_section("CLEAN STEAM STORE DATA")
+    # Clean the Steam Store data
     # clean_steam_store_data()
 
-    config.log_section("CLEAN STEAM REVIEWS DATA")
-    clean_steam_reviews_data()
+    # Clean the Steam Reviews data
+    # clean_steam_reviews_data()
 
     # TODO - CLEAN UP THIS FILE TO BE MORE READABLE AND ORGANIZED (FUNCTIONS, COMMENTS, ETC.)
 
