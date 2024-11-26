@@ -41,6 +41,11 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
 ### PROJECT RELATED ###
 
 # Ignore virtual environment
@@ -52,7 +57,5 @@ visuals/*.png
 # Ignore tests
 tests/
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Ignore large files
+*.npy
