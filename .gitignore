@@ -57,5 +57,4 @@ visuals/*.png
 # Ignore tests
 tests/
 
-# Ignore large files
-*.npy
+
