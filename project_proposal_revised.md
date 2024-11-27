@@ -1,6 +1,6 @@
 #### SER494: Project Proposal
 
-# Clustering Analysis of Steam Games Using Review Sentiment and Game Features
+# Clustering Analysis of Steam Games by Reviews, Sentiments, and Store Metadata
 
 #### Anonymous
 

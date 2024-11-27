@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from transformers import BertTokenizer, TFBertModel
+from sklearn.preprocessing import LabelEncoder
 
 import wf_config as config 
 
@@ -116,27 +117,17 @@ def combine_bert_with_steam_data(include_vectorized_features=False, aggregation_
         return method
         
     agg_method = validate_agg_method(aggregation_method)
-
     logging.info(f"Combining data using aggregation method: {aggregation_method}")
 
     # Load embeddings, reviews, and store data
-    bert_embeddings = np.load(config.STEAM_REVIEWS_DATA_BERT_EMBEDDINGS_NPY)
     reviews_data = pd.read_csv(config.STEAM_REVIEWS_DATA_CLEANED)
     store_data = pd.read_csv(config.STEAM_STORE_DATA_CLEANED)
-
-    # Ensure embeddings and reviews align
-    if bert_embeddings.shape[0] != reviews_data.shape[0]:
-        raise ValueError("Mismatch between BERT embeddings and review rows!")
-
-    # Add BERT embeddings to reviews
-    reviews_data['bert_embeddings'] = list(bert_embeddings)
 
     # Use median for skewed features
     playtime_agg_method = 'median'
 
     # Define the aggregation dictionary dynamically
     aggregation_dict = {
-        'bert_embeddings'           : lambda x: np.stack(x).mean(axis=0), # Always use mean for embeddings
         'compound'                  : agg_method,
         'positive'                  : agg_method,
         'negative'                  : agg_method,
@@ -158,8 +149,7 @@ def combine_bert_with_steam_data(include_vectorized_features=False, aggregation_
     # Rename columns based on their specific aggregation method
     renamed_columns = {
         key: (f"{playtime_agg_method}_{key}" if key == 'playtime_at_review'
-              else f"{agg_method}_{key}" if key != 'bert_embeddings'
-              else "avg_bert_embeddings")
+              else f"{agg_method}_{key}")
         for key in aggregation_dict.keys()
     }
     aggregated_reviews.rename(columns=renamed_columns, inplace=True)
@@ -170,12 +160,18 @@ def combine_bert_with_steam_data(include_vectorized_features=False, aggregation_
         if col in aggregated_reviews:
             aggregated_reviews[col] = np.log1p(aggregated_reviews[col])  # log1p handles log(0)
 
+    store_data = encode_overall_review(store_data) # Encode overall_review column
+
     # Drop irrelevant columns from store data
     columns_to_drop = [
         'store_game_description',  # Purely descriptive
         'game_title',              # Identifier but not useful for clustering
         'developer',               # Not useful for clustering
         'publisher',               # Not useful for clustering
+        'release_date',            # Not useful for clustering
+        'genres',                  # Already vectorized
+        'categories',              # Already vectorized
+        'overall_review',          # Encoded as 'overall_review_encoded'
     ]
     store_data.drop(columns=columns_to_drop, inplace=True, errors='ignore')  # Drop columns if they exist
 
@@ -220,19 +216,30 @@ def prepare_clustering_dataset():
     """
     config.log_section("PREPARING CLUSTERING DATASET")
 
-    # Path to combined clustering dataset
-    combined_data_path = config.COMBINED_CLUSTERING_STEAM_DATASET
-
-    # Check if the combined dataset already exists
-    if os.path.exists(combined_data_path):
-        logging.info(f"Combined clustering dataset already exists at {combined_data_path}. Skipping preparation.")
-        return  # Exit early
-
     # Combine BERT embeddings with store data
     combined_data_mean = combine_bert_with_steam_data(include_vectorized_features=False, aggregation_method='mean') 
     logging.info(f"Prepared clustering dataset with shape: {combined_data_mean.shape}")
-    print(f"combined_data stats\n: {combined_data_mean.drop(columns=['app_id']).describe().round(2)}")
-    print(combined_data_mean.info())
+    # print(f"combined_data stats\n: {combined_data_mean.drop(columns=['app_id']).describe().round(2)}")
+    # print(combined_data_mean.info())
+
+
+def encode_overall_review(input_data):
+    """
+    Encode the 'overall_review' column into numeric values using LabelEncoder.
+
+    Args:
+        data (pd.DataFrame): The dataset containing the 'overall_review' column.
+
+    Returns:
+        pd.DataFrame: The dataset with the encoded 'overall_review' column.
+    """
+    if 'overall_review' in input_data.columns:
+        encoder = LabelEncoder()
+        input_data['overall_review_encoded'] = encoder.fit_transform(input_data['overall_review'])
+        print(f"\nEncoded 'overall_review' into numeric values: {list(encoder.classes_)}\n")
+    else:
+        print("\n'overall_review' column not found in the dataset.\n")
+    return input_data
 
 
 def main():

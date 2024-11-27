@@ -42,14 +42,23 @@ STEAM_REVIEWS_DATA_CLEANED = f'{DATA_PROCESSED_FOLDER}steam-reviews-data-cleaned
 
 STEAM_REVIEWS_DATA_BERT_EMBEDDINGS_NPY = f'{DATA_PROCESSED_FOLDER}bert_embeddings.npy' # BERT embeddings for reviews
 
-COMBINED_CLUSTERING_STEAM_DATASET = f'{DATA_PROCESSED_FOLDER}combined-clustering-steam-dataset.csv'
+COMBINED_CLUSTERING_STEAM_DATASET = f'{DATA_PROCESSED_FOLDER}combined-clustering-steam-dataset.csv' # Combined dataset for clustering
+
+# Constants for ml training and testing datasets
+FEATURES_SCALER_PICKLE = f'{DATA_PROCESSED_FOLDER}features_scaler.pkl' # File for scaler used in standardizing features
+TRAIN_FEATURES_NPY = f'{DATA_PROCESSED_FOLDER}train_features.npy'
+TEST_FEATURES_NPY = f'{DATA_PROCESSED_FOLDER}test_features.npy'
+TRAIN_IDS_CSV = f'{DATA_PROCESSED_FOLDER}train_ids.csv'
+TEST_IDS_CSV = f'{DATA_PROCESSED_FOLDER}test_ids.csv'
+TRAIN_CLUSTERS_CSV = f'{DATA_PROCESSED_FOLDER}train_clusters.csv'
+TEST_CLUSTERS_CSV = f'{DATA_PROCESSED_FOLDER}test_clusters.csv'
 
 
 # CONSTANTS FOR OUTPUT FILES
 CORRELATIONS_TEXT_FILE = f'{DATA_PROCESSED_FOLDER}correlations.txt'
 STORE_DATA_SUMMARY_TEXT_FILE = f'{DATA_PROCESSED_FOLDER}store_data_summary.txt'
 REVIEWS_DATA_SUMMARY_TEXT_FILE = f'{DATA_PROCESSED_FOLDER}reviews_data_summary.txt'
-
+EVALUATION_SUMMARY_TEXT_FILE = f'{EVALUATION_FOLDER}summary.txt'
 
 # CONSTANTS FOR VISUALIZATION FILES
 CORRELATIONS_HEATMAP = f'{VISUALIZATIONS_FOLDER}heatmap_correlations.png'

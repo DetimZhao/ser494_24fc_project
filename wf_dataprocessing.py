@@ -16,7 +16,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 import wf_config as config
 
-config.log_section("SETUP DATA CLEANING")
+config.log_section("DOWNLOAD FOR DATA CLEANING")
 # Suppress SSL certificate verification warnings from: https://stackoverflow.com/a/50406704/15193980
 try:
     _create_unverified_https_context = ssl._create_unverified_context
@@ -689,6 +689,7 @@ def clean_steam_reviews_data():
     Returns:
         - pd.DataFrame: The cleaned and processed reviews dataset.
     """
+    config.log_section("CLEAN STEAM REVIEWS DATA")
     # %%
     # LOAD DATA AND INITIAL CHECK OF THE DATASET
     data = pd.read_csv(config.STEAM_REVIEWS_DATA)
