@@ -1,5 +1,5 @@
 # Prepares data specifically for ML tasks.
-# Generates BERT embeddings.
+# Generates BERT embeddings, combines them with store data, and prepares for clustering.
 # My personal device is an m1 mac, so I will be utilizing tensorflow-metal: https://developer.apple.com/metal/tensorflow-plugin/
 
 # Import libraries
@@ -13,8 +13,6 @@ from transformers import BertTokenizer, TFBertModel
 
 import wf_config as config 
 
-save_checkpoint_path = f"{config.DATA_PROCESSED_FOLDER}bert_embeddings_checkpoint.npy"  # Temporary file for checkpointing
-print(save_checkpoint_path)
 
 def compute_bert_embeddings(texts, tokenizer, model, max_length=512, batch_size=32, save_path=None):
     """
@@ -59,9 +57,9 @@ def compute_bert_embeddings(texts, tokenizer, model, max_length=512, batch_size=
     return np.vstack(embeddings)
 
 
-def main():
+def extract_bert_embeddings():
     config.log_section("BERT EMBEDDING EXTRACTION")
-
+    
     # Save embeddings as a .npy file
     embeddings_path = config.STEAM_REVIEWS_DATA_BERT_EMBEDDINGS_NPY
 
@@ -95,6 +93,156 @@ def main():
         logging.info(f"Removed temporary checkpoint file: {save_checkpoint_path}")
 
     logging.info("BERT embedding extraction complete.")
+
+
+
+def combine_bert_with_steam_data(include_vectorized_features=False, aggregation_method='mean'):
+    """
+    Combines BERT embeddings, sentiment scores, review features, and store metadata
+    for clustering, with optional inclusion of vectorized genres and categories.
+
+    Args:
+        include_vectorized_features (bool): Whether to include vectorized genres and categories.
+        aggregation_method (str): Aggregation method for numeric features (e.g., "mean", "median", "sum"). Default is "mean".
+    """
+
+    def validate_agg_method(method):
+        """
+        Validate and return aggregation function based on method. 
+        """
+        method = method.lower()
+        if method not in ['mean', 'median', 'sum']:
+            raise ValueError(f"Unsupported aggregation method: {method}")
+        return method
+        
+    agg_method = validate_agg_method(aggregation_method)
+
+    logging.info(f"Combining data using aggregation method: {aggregation_method}")
+
+    # Load embeddings, reviews, and store data
+    bert_embeddings = np.load(config.STEAM_REVIEWS_DATA_BERT_EMBEDDINGS_NPY)
+    reviews_data = pd.read_csv(config.STEAM_REVIEWS_DATA_CLEANED)
+    store_data = pd.read_csv(config.STEAM_STORE_DATA_CLEANED)
+
+    # Ensure embeddings and reviews align
+    if bert_embeddings.shape[0] != reviews_data.shape[0]:
+        raise ValueError("Mismatch between BERT embeddings and review rows!")
+
+    # Add BERT embeddings to reviews
+    reviews_data['bert_embeddings'] = list(bert_embeddings)
+
+    # Use median for skewed features
+    playtime_agg_method = 'median'
+
+    # Define the aggregation dictionary dynamically
+    aggregation_dict = {
+        'bert_embeddings'           : lambda x: np.stack(x).mean(axis=0), # Always use mean for embeddings
+        'compound'                  : agg_method,
+        'positive'                  : agg_method,
+        'negative'                  : agg_method,
+        'neutral'                   : agg_method,
+        'engagement_ratio'          : agg_method,
+        'playtime_percentile_review': agg_method,
+        'playtime_percentile_total' : agg_method,
+        'votes_up'                  : agg_method,
+        'votes_funny'               : agg_method,
+        'weighted_vote_score'       : agg_method,
+        'playtime_at_review'        : playtime_agg_method, # Use median for playtime
+        'review_length'             : agg_method,
+        'word_count'                : agg_method,
+    }
+    
+    # Aggregate reviews by app_id
+    aggregated_reviews = reviews_data.groupby('app_id').agg(aggregation_dict).reset_index()
+
+    # Rename columns based on their specific aggregation method
+    renamed_columns = {
+        key: (f"{playtime_agg_method}_{key}" if key == 'playtime_at_review'
+              else f"{agg_method}_{key}" if key != 'bert_embeddings'
+              else "avg_bert_embeddings")
+        for key in aggregation_dict.keys()
+    }
+    aggregated_reviews.rename(columns=renamed_columns, inplace=True)
+
+    # Apply log transformations to skewed columns
+    skewed_columns = ['mean_votes_up', 'mean_votes_funny', 'median_playtime_at_review']
+    for col in skewed_columns:
+        if col in aggregated_reviews:
+            aggregated_reviews[col] = np.log1p(aggregated_reviews[col])  # log1p handles log(0)
+
+    # Drop irrelevant columns from store data
+    columns_to_drop = [
+        'store_game_description',  # Purely descriptive
+        'game_title',              # Identifier but not useful for clustering
+        'developer',               # Not useful for clustering
+        'publisher',               # Not useful for clustering
+    ]
+    store_data.drop(columns=columns_to_drop, inplace=True, errors='ignore')  # Drop columns if they exist
+
+    # Merge aggregated reviews with store data
+    combined_data = pd.merge(store_data, aggregated_reviews, on='app_id', how='inner')
+
+    # Optional: Add vectorized genres and categories
+    if include_vectorized_features:
+        genres_vectorized = np.load(os.path.join(config.VECTORIZED_RESULTS_FOLDER, 'genres_vectorized_results.npy'))
+        categories_vectorized = np.load(os.path.join(config.VECTORIZED_RESULTS_FOLDER, 'categories_vectorized_results.npy'))
+
+        # Convert to DataFrame with appropriate column names
+        genres_df = pd.DataFrame(genres_vectorized, columns=[f"genres_tfidf_{i}" for i in range(genres_vectorized.shape[1])])
+        categories_df = pd.DataFrame(categories_vectorized, columns=[f"categories_tfidf_{i}" for i in range(categories_vectorized.shape[1])])
+
+        # Align indices to combined_data
+        if len(genres_df) == len(combined_data):
+            genres_df.index = combined_data.index
+            combined_data = pd.concat([combined_data, genres_df], axis=1)
+        else:
+            logging.warning("Genres vectorized features length does not match combined_data length. Skipping.")
+
+        if len(categories_df) == len(combined_data):
+            categories_df.index = combined_data.index
+            combined_data = pd.concat([combined_data, categories_df], axis=1)
+        else:
+            logging.warning("Categories vectorized features length does not match combined_data length. Skipping.")
+
+    logging.info(f"Final combined dataset shape: {combined_data.shape}")
+
+    # Save combined data
+    combined_data_path = config.COMBINED_CLUSTERING_STEAM_DATASET
+    combined_data.to_csv(combined_data_path, index=False)
+    logging.info(f"Combined dataset saved to: {combined_data_path}")
+
+    return combined_data
+
+
+def prepare_clustering_dataset():
+    """
+    Combines BERT embeddings with store data for clustering.
+    """
+    config.log_section("PREPARING CLUSTERING DATASET")
+
+    # Path to combined clustering dataset
+    combined_data_path = config.COMBINED_CLUSTERING_STEAM_DATASET
+
+    # Check if the combined dataset already exists
+    if os.path.exists(combined_data_path):
+        logging.info(f"Combined clustering dataset already exists at {combined_data_path}. Skipping preparation.")
+        return  # Exit early
+
+    # Combine BERT embeddings with store data
+    combined_data_mean = combine_bert_with_steam_data(include_vectorized_features=False, aggregation_method='mean') 
+    logging.info(f"Prepared clustering dataset with shape: {combined_data_mean.shape}")
+    print(f"combined_data stats\n: {combined_data_mean.drop(columns=['app_id']).describe().round(2)}")
+    print(combined_data_mean.info())
+
+
+def main():
+    # Extract BERT Embeddings
+    extract_bert_embeddings()
+
+    # Prepare Clustering Dataset
+    prepare_clustering_dataset()
+
+    logging.info("BERT extraction and clustering dataset preparation complete.")
 
 if __name__ == "__main__":
     main()

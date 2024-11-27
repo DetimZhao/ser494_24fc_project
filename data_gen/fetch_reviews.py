@@ -90,7 +90,7 @@ def log_execution_time(start_time):
     print(f"Total elasped time of fetching reviews: {elapsed_time:.2f} seconds.")
 
 
-def reviews_already_fetched(data_folder, processed_file_prefix="idprocessed_on"):
+def reviews_already_fetched(data_folder, data_gen_folder, processed_file_prefix="idprocessed_on_"):
     """
     Checks if review data has already been fetched by verifying the existence
     of JSON review files and a processed indicator file in the data folder.
@@ -109,13 +109,13 @@ def reviews_already_fetched(data_folder, processed_file_prefix="idprocessed_on")
         return False
 
     # Check for the existence of a processed indicator file
-    processed_files_exist = any(f.startswith(processed_file_prefix) for f in os.listdir(data_folder))
+    processed_files_exist = any(f.startswith(processed_file_prefix) for f in os.listdir(data_gen_folder))
     if not processed_files_exist:
-        logging.info(f"No processed indicator file found in {data_folder}.")
+        logging.info(f"No processed indicator file found in {data_gen_folder}.")
         return False
 
     # Both JSON files and the processed indicator file exist
-    logging.info(f"Both JSON review files and processed indicator file exist in {data_folder}.")
+    print(".JSON files and processed indicator file found. Skipping fetching process.")
     return True
 
 
@@ -123,9 +123,10 @@ def main():
     config.log_section("SETUP TO FETCH REVIEWS")
 
     output_data = os.path.join(config.DATA_GEN_FOLDER, "data")  # Folder with review JSONs
+    data_gen_folder = config.DATA_GEN_FOLDER  # Folder with processed indicator file
 
     # Check if reviews have already been fetched
-    if reviews_already_fetched(output_data):
+    if reviews_already_fetched(output_data, data_gen_folder):
         print("Reviews already fetched. Skipping fetching process.")
         return  # Exit early    
 

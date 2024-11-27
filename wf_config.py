@@ -19,6 +19,7 @@ if PROJECT_ROOT not in sys.path:
 #### CONSTANTS/DEFAULTS ####
 
 # CONSTANTS FOR FOLDER PATHS
+# Project default folder structure
 DATA_GEN_FOLDER = 'data_gen/'
 DATA_ORIGINAL_FOLDER = 'data_original/'
 DATA_PROCESSED_FOLDER = 'data_processed/'
@@ -26,14 +27,22 @@ VISUALIZATIONS_FOLDER = 'visuals/'
 MODELS_FOLDER = 'models/'
 EVALUATION_FOLDER = 'evaluation/'
 
+# Additional folders 
+VECTORIZERS_FOLDER = f'{DATA_PROCESSED_FOLDER}vectorizers/' # Folder for storing vectorizers (insde data_processed)
+VECTORIZED_RESULTS_FOLDER = f'{DATA_PROCESSED_FOLDER}vectorized_results/' # Folder for storing vectorized results (inside data_processed)
 
 # CONSTANTS FOR DATA FILES
-STEAM_STORE_DATA = f'{DATA_ORIGINAL_FOLDER}steam-games.csv'
-STEAM_STORE_DATA_CLEANED = f'{DATA_PROCESSED_FOLDER}steam-store-data-cleaned.csv'
-IDS_LIST_FILE = f'{DATA_GEN_FOLDER}idlist.txt'
-STEAM_REVIEWS_DATA = f'{DATA_ORIGINAL_FOLDER}combined_reviews.csv'
-STEAM_REVIEWS_DATA_CLEANED = f'{DATA_PROCESSED_FOLDER}steam-reviews-data-cleaned.csv'
-STEAM_REVIEWS_DATA_BERT_EMBEDDINGS_NPY = f'{DATA_PROCESSED_FOLDER}bert_embeddings.npy'
+STEAM_STORE_DATA = f'{DATA_ORIGINAL_FOLDER}steam-games.csv' # Original store data
+STEAM_STORE_DATA_CLEANED = f'{DATA_PROCESSED_FOLDER}steam-store-data-cleaned.csv' # Cleaned store data
+
+IDS_LIST_FILE = f'{DATA_GEN_FOLDER}idlist.txt' # File containing list of game IDs to fetch reviews for
+
+STEAM_REVIEWS_DATA = f'{DATA_ORIGINAL_FOLDER}combined_reviews.csv' # Combined all Steam reviews data
+STEAM_REVIEWS_DATA_CLEANED = f'{DATA_PROCESSED_FOLDER}steam-reviews-data-cleaned.csv' # Cleaned reviews data
+
+STEAM_REVIEWS_DATA_BERT_EMBEDDINGS_NPY = f'{DATA_PROCESSED_FOLDER}bert_embeddings.npy' # BERT embeddings for reviews
+
+COMBINED_CLUSTERING_STEAM_DATASET = f'{DATA_PROCESSED_FOLDER}combined-clustering-steam-dataset.csv'
 
 
 # CONSTANTS FOR OUTPUT FILES

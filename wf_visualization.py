@@ -9,7 +9,7 @@ import wf_config as config
 # %%
 # LOAD CLEANED DATA AND PREPARE FOR VISUALIZATION
 
-def load_and_prepare_data():
+def load_and_prepare_store_data():
     # Load the cleaned data
     data_cleaned = pd.read_csv('data_processed/steam-store-data-cleaned.csv', parse_dates=['release_date'])
 
@@ -52,10 +52,99 @@ def load_and_prepare_data():
     return data_visualization, quantitative_columns, qualitative_columns
 
 
+
+def load_and_prepare_reviews_data():
+    # Load the cleaned reviews data
+    reviews_data_path = config.STEAM_REVIEWS_DATA_CLEANED
+    data_cleaned = pd.read_csv(reviews_data_path, parse_dates=['timestamp_created', 'timestamp_updated', 'last_played'])
+
+    # Make a dictionary to map original column names to nicer names for visualization
+    column_name_mapping = {
+        'app_id': 'App ID',
+        'review_id': 'Review ID',
+        'review': 'Review Text',
+        'timestamp_created': 'Timestamp Created',
+        'timestamp_updated': 'Timestamp Updated',
+        'voted_up': 'Voted Up',
+        'votes_up': 'Votes Up',
+        'votes_funny': 'Votes Funny',
+        'weighted_vote_score': 'Weighted Vote Score',
+        'comment_count': 'Comment Count',
+        'steam_purchase': 'Steam Purchase',
+        'received_for_free': 'Received for Free',
+        'num_games_owned': 'Number of Games Owned',
+        'num_reviews': 'Number of Reviews',
+        'playtime_forever': 'Playtime Forever',
+        'playtime_last_two_weeks': 'Playtime Last Two Weeks',
+        'playtime_at_review': 'Playtime at Review',
+        'last_played': 'Last Played',
+        'review_age_days': 'Review Age (Days)',
+        'updated_review_age_days': 'Updated Review Age (Days)',
+        'last_played_days': 'Last Played (Days)',
+        'engagement_ratio': 'Engagement Ratio',
+        'playtime_percentile_review': 'Playtime Percentile at Review',
+        'playtime_percentile_total': 'Playtime Percentile Total',
+        'review_length': 'Review Length',
+        'word_count': 'Word Count',
+        'compound': 'Compound Sentiment',
+        'positive': 'Positive Sentiment',
+        'negative': 'Negative Sentiment',
+        'neutral': 'Neutral Sentiment'
+    }
+
+    # Use the rename method to apply the new names
+    data_visualization = data_cleaned.rename(columns=column_name_mapping)
+
+    # Only select quantitative columns for visualization
+    quantitative_columns = [
+        'Votes Up',
+        'Weighted Vote Score', 
+        'Review Age (Days)', 
+        'Engagement Ratio', 
+        'Playtime Percentile at Review', 
+        'Compound Sentiment'
+    ]
+
+    # Only select qualitative columns for visualization
+    qualitative_columns = [
+        'Review Text', 
+        'Voted Up', 
+        'Steam Purchase', 
+        'Received for Free'
+    ]
+
+    return data_visualization, quantitative_columns, qualitative_columns
+
+
+def load_and_prepare_combined_data():
+    # Load the combined clustering dataset
+    data = pd.read_csv(config.COMBINED_CLUSTERING_STEAM_DATASET)
+
+    # Only select quantitative columns for visualization
+    quantitative_columns = [
+        'mean_playtime_percentile_review', 
+        'mean_playtime_percentile_total',
+        'mean_votes_up', 
+        'mean_votes_funny',
+        'median_playtime_at_review', 
+        'mean_review_length', 
+        'mean_word_count'
+    ]
+
+    # Only select qualitative columns for visualization
+    qualitative_columns = [
+        'overall_review', 
+    ]
+
+    return data, quantitative_columns, qualitative_columns
+
+
 # %%
 # CREATE CORRELATION MATRIX AND SAVE TO FILE
 
 def create_and_save_correlation_matrix(data_visualization, quantitative_columns):
+    # TODO - Fix the function to take in either the store or review data 
+
     # Calculate the correlation matrix
     correlation_matrix = data_visualization[quantitative_columns].corr().round(2)
 
@@ -70,9 +159,9 @@ def create_and_save_correlation_matrix(data_visualization, quantitative_columns)
     try:
         with open(corr_matrix_file_path, 'w') as f:
             f.write(formatted_corr_matrix)
-        print(f"Correlation Matrix saved successfully to path: {corr_matrix_file_path}")
+        print(f"Correlation Matrix saved successfully to path: {corr_matrix_file_path}\n")
     except Exception as e:
-        print(f"Error saving Correlation Matrix to path: {corr_matrix_file_path}")
+        print(f"Error saving Correlation Matrix to path: {corr_matrix_file_path}\n")
         print(e)
 
     # File path and filename to save to
@@ -86,7 +175,8 @@ def create_and_save_correlation_matrix(data_visualization, quantitative_columns)
     sns.heatmap(correlation_matrix, mask=mask, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)  
     plt.title("Correlation Matrix (Quantitative Features)")  
     plt.savefig(corr_matrix_heatmap_file_path)
-    # plt.show()  
+    # plt.show()
+    plt.close('all')
 
 
 # %%
@@ -94,9 +184,10 @@ def create_and_save_correlation_matrix(data_visualization, quantitative_columns)
 
 # Create scatter plots for all pairs of quantitative features 
 def create_and_save_scatterplot(data_visualization, quantitative_columns):
+    # TODO - make axis log scale when necessary
     for i in range(len(quantitative_columns)):
         for j in range(i + 1, len(quantitative_columns)):
-            plt.figure(figsize=(10, 6))
+            plt.figure(figsize=(12, 8))
             sns.scatterplot(x=data_visualization[quantitative_columns[i]], 
                             y=data_visualization[quantitative_columns[j]],
                             alpha=0.6, s=50)
@@ -116,6 +207,7 @@ def create_and_save_scatterplot(data_visualization, quantitative_columns):
 
             plt.savefig(f'{config.VISUALIZATIONS_FOLDER}scatterplot_{quantitative_columns[i]} vs {quantitative_columns[j]}.png')
             # plt.show()
+            plt.close()
             print(f"Saved scatter plot: scatterplot_{quantitative_columns[i]} vs {quantitative_columns[j]}.png\n")
 
 
@@ -129,7 +221,7 @@ def create_and_save_bar_graphs(data_visualization, qualitative_columns):
 
     # Create bar graph for each qualitative feature
     for col in qualitative_columns:
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(12, 8))
         
         # Check if the column has more than max_categories unique values
         if data_visualization[col].nunique() > max_categories:
@@ -145,7 +237,7 @@ def create_and_save_bar_graphs(data_visualization, qualitative_columns):
         plt.xlabel('Count', fontsize=12)
         plt.ylabel(col, fontsize=12)
         # plt.show()
-        plt.savefig(f'{config.VISUALIZATIONS_FOLDER}bar_graph_{col}.png')
+        plt.close()
         print(f"Saved bar graph: bar_graph_{col}.png\n")
 
 
@@ -155,24 +247,99 @@ def create_and_save_bar_graphs(data_visualization, qualitative_columns):
 
 def create_and_save_histograms(data_visualization):
     # Plot the distribution of 'Overall Positive Review Percentage' as a histogram
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
     sns.histplot(data=data_visualization, x='Positive Review Percentage', bins=20, kde=True)
 
     plt.title('Distribution of Overall Positive Review Percentage', fontsize=14)
     plt.xlabel('Overall Positive Review Percentage (%)', fontsize=12)
     plt.ylabel('Frequency', fontsize=12)
-    plt.savefig(f'{config.VISUALIZATIONS_FOLDER}histogram_positive_review_percentage.png')
+    plt.close()
+    print("Saved histogram: histogram_positive_review_percentage.png\n")
     # plt.show()
     print("Saved histogram: histogram_positive_review_percentage.png\n")
 
 
-def main():
-    config.log_section("DATA VISUALIZATION")
-    data_visualization, quantitative_columns, qualitative_columns = load_and_prepare_data()
+def inspect_outliers(data, columns_to_check):
+    """
+    Inspect potential outliers in numeric columns using summary statistics and visualizations.
+
+    Args:
+        data (pd.DataFrame): The dataset.
+        columns_to_check (list): List of column names to inspect.
+
+    Returns:
+        None: Displays the summary and visualizations.
+    """
+    for col in columns_to_check:
+        print(f"Summary statistics for '{col}':\n")
+        print(data[col].describe())
+        print("\n" + "-"*50 + "\n")
+        
+        # Plot histogram
+        plt.figure(figsize=(10, 5))
+        plt.hist(data[col], bins=30, edgecolor='k', alpha=0.7)
+        plt.title(f"Histogram for {col}")
+        plt.xlabel(col)
+        plt.ylabel("Frequency")
+        plt.show()
+
+        # Plot boxplot
+        plt.figure(figsize=(10, 5))
+        plt.boxplot(data[col].dropna(), vert=False, patch_artist=True)
+        plt.title(f"Boxplot for {col}")
+        plt.xlabel(col)
+        plt.show()
+
+
+def check_for_outliers():
+    """
+    Check for outliers in the specified columns of the dataset.
+    It is used for testing and checking purposes to ensure that 
+    no significant outliers are missed in the dataset.
+    """
+    
+    # Check the combined clustering dataset for outliers since we could have missed them
+    data = pd.read_csv(config.COMBINED_CLUSTERING_STEAM_DATASET)    # Columns to check
+    columns_to_check = [
+        'mean_playtime_percentile_review', 
+        'mean_playtime_percentile_total',
+        'mean_votes_up', 
+        'mean_votes_funny',
+        'median_playtime_at_review', 
+        'mean_review_length', 
+        'mean_word_count'
+    ]
+    inspect_outliers(data, columns_to_check)
+    # Insight from the above analysis (before log transformation btw):
+    # - The playtime columns show a bell-shaped distribution with some outliers at the higher percentiles.
+    # - Both vote distributions are highly skewed.
+    # - The playtime_at_review column is highly skewed with some extreme outliers (e.g., values > 30,000).
+    # - The review and word count distributions are slightly skewed with a few outliers.
+    # As a result from the above analysis, we will apply log transformations to the skewed columns.
+
+
+def run_all_data_visualizations(load_and_prepare_data_func):
+    # Load and prepare the data using the provided function
+    data_visualization, quantitative_columns, qualitative_columns = load_and_prepare_data_func()
+    
+    # Create and save visualizations
     create_and_save_correlation_matrix(data_visualization, quantitative_columns)  
     create_and_save_scatterplot(data_visualization, quantitative_columns) 
     create_and_save_bar_graphs(data_visualization, qualitative_columns) 
     create_and_save_histograms(data_visualization) 
+    plt.close('all') # Cleanup
+
+
+def main():
+    config.log_section("DATA VISUALIZATION")
+
+    run_all_data_visualizations(load_and_prepare_store_data) # Visualize store data
+
+    # run_all_data_visualizations(load_and_prepare_reviews_data) # Visualize reviews data
+
+    # check_for_outliers() # Check for outliers in the combined dataset
+
+    # run_all_data_visualizations(load_and_prepare_combined_data) # Visualize combined clustering data
 
 # %%
 

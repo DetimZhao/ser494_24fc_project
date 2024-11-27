@@ -1,20 +1,23 @@
 # Import libraries
 import re
 import ssl
+import pickle
+import os
 
+import numpy as np
 import pandas as pd
 import nltk
 from nltk.corpus import stopwords, wordnet
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.sentiment import SentimentIntensityAnalyzer
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 import wf_config as config
 
 config.log_section("SETUP DATA CLEANING")
-# Suppress SSL certificate verification warnings
-# from: https://stackoverflow.com/a/50406704/15193980
+# Suppress SSL certificate verification warnings from: https://stackoverflow.com/a/50406704/15193980
 try:
     _create_unverified_https_context = ssl._create_unverified_context
 except AttributeError:
@@ -38,6 +41,61 @@ lemmatizer = WordNetLemmatizer()
 # Initialize SentimentIntensityAnalyzer
 sia = SentimentIntensityAnalyzer()
 
+
+
+def vectorize_text_features(data, text_column, vectorizer=None, max_features=50, save_vectorizer_to=None, save_vectorized_results_to=None):
+    """
+    Vectorizes text features using TfidfVectorizer.
+
+    Args:
+        data (pd.DataFrame): The dataset containing the text column to vectorize.
+        text_column (str): The column name containing text data (e.g., 'genres').
+        vectorizer (TfidfVectorizer): Optional pre-configured TfidfVectorizer.
+        max_features (int): Maximum number of features to retain.
+        save_vectorizer_to (str): Directory path to save the vectorizer as a pickle file.
+        save_vectorized_results_to (str): Directory path to save the vectorized results as a .npy file.
+
+    Returns:
+        pd.DataFrame: DataFrame with vectorized features optionally added.
+        TfidfVectorizer: The vectorizer used (for saving/reuse).
+    """
+    if vectorizer is None:
+        vectorizer = TfidfVectorizer(max_features=max_features)
+
+    # Fit and transform the text column
+    tfidf_matrix = vectorizer.fit_transform(data[text_column].fillna(''))
+
+    # Convert to DataFrame
+    tfidf_features = pd.DataFrame(tfidf_matrix.toarray(), columns=vectorizer.get_feature_names_out())
+
+    # Add prefix to avoid column name clashes
+    tfidf_features = tfidf_features.add_prefix(f"{text_column}_tfidf_")
+
+    # Reset index to align with the original dataset
+    tfidf_features.index = data.index
+
+    # Concatenate vectorized features with original dataset (optional)
+    # data = pd.concat([data, tfidf_features], axis=1) # Uncomment to add vectorized features to the cleaned data
+
+    # Save the vectorizer for reuse
+    if save_vectorizer_to:
+        if not os.path.exists(save_vectorizer_to):
+            os.makedirs(save_vectorizer_to, exist_ok=True)
+        vectorizer_path = os.path.join(save_vectorizer_to, f"{text_column}_vectorizer.pkl")
+        save_object_to_pickle(vectorizer, vectorizer_path)
+
+    # Save the vectorized results for future analysis
+    if save_vectorized_results_to:
+        if not os.path.exists(save_vectorized_results_to):
+            os.makedirs(save_vectorized_results_to, exist_ok=True)
+        results_path = os.path.join(save_vectorized_results_to, f"{text_column}_vectorized_results.npy")
+        np.save(results_path, tfidf_matrix.toarray())
+        print(f"Vectorized results saved to {results_path}")
+
+    return data, vectorizer
+
+
+
 def clean_steam_store_data():
     """
     Clean the Steam Store dataset by:
@@ -51,6 +109,8 @@ def clean_steam_store_data():
         - Dropping rows with missing values in original and discounted prices.
         - Imputing missing values in overall review columns.
         - Dropping rows with missing about_description.
+        - Dropping rows with missing OS support columns.
+        - TODO: Add more cleaning steps as needed.
         - Saving the cleaned data to a new CSV file.
 
     Returns:
@@ -194,16 +254,6 @@ def clean_steam_store_data():
     # %%
     # PAUSE DATA CLEANING: CHECK FOR MISSING VALUES IN KEY COLUMNS: developer, publisher
 
-    # Check for patterns in missing values in 'developer' and 'release_date'
-    missing_developer = data_cleaned[data_cleaned['developer'].isnull()]
-    missing_release_date = data_cleaned[data_cleaned['release_date'].isnull()]
-
-    # View a sample of missing developer and release_date rows to check for patterns
-    # print("##################### MISSING DEVELOPER ######################") # for readability
-    # print(missing_developer[['game_title', 'store_game_description', 'genres', 'categories', 'publisher']].head())
-    # print("\n##################### MISSING RELEASE DATE ######################") # for readability
-    # print(missing_release_date[['game_title', 'store_game_description', 'genres', 'categories', 'developer']].head())
-
     # Insights (missing_developer):
     # - The Witcher 3: Wild Hunt - Complete Edition: has genres, categories 
     #   - missing developer, pubslisher, and release_date
@@ -223,30 +273,6 @@ def clean_steam_store_data():
 
 
 
-    # %% 
-    # PAUSE DATA CLEANING: CHECK PERCENTAGES OF MISSING VALUES IN KEY COLUMNS: developer, publisher, genres, categories
-    
-    # Find/Calculate the percentage of missing values for developer and publisher 
-    missing_developer_percentage = data_cleaned['developer'].isnull().mean() * 100
-    missing_publisher_percentage = data_cleaned['publisher'].isnull().mean() * 100
-    # print("\n############### MISSING PERCENTAGES OF DEVELOPER AND PUBLISHER ###############") # for readability
-    # print(f"Missing Developer: {missing_developer_percentage:.2f}%") # 0.45% of dataset
-    # print(f"Missing Publisher: {missing_publisher_percentage:.2f}%") # 0.50% of dataset
-
-    # Find/Calculate the percentage of missing values for genres and categories
-    missing_genres_percentage = data_cleaned['genres'].isnull().mean() * 100
-    missing_categories_percentage = data_cleaned['categories'].isnull().mean() * 100
-    # print("\n############### MISSING PERCENTAGES OF GENRES AND CATEGORIES ###############") # for readability
-    # print(f"Missing Genres: {missing_genres_percentage:.2f}%") # 0.20% of dataset
-    # print(f"Missing Categories: {missing_categories_percentage:.2f}%") # 0.11% of dataset
-
-    # Find/Calculate the percentage of missing values for release date
-    missing_release_date_percentage = data_cleaned['release_date'].isnull().mean() * 100
-    # print("\n############### MISSING PERCENT OF RELEASE DATE ###############") # for readability
-    # print(f"Missing Genres: {missing_release_date_percentage:.2f}%") # 0.13% of dataset
-
-
-
     # %%
     # DATA CLEANING CONT: DROP ROWS WITH MISSING DEVELOPER, PUBLISHER, GENRES, AND CATEGORIES
 
@@ -255,19 +281,13 @@ def clean_steam_store_data():
     data_cleaned = data_cleaned.dropna(subset=['developer', 'publisher', 'genres', 'categories', 'release_date'])
 
     # Check cleaned dataset's shape to see how many rows remain 
-    data_cleaned.shape # (42199, 24) where 42199 rows remain after dropping missing values
+    # data_cleaned.shape # (42199, 24) where 42199 rows remain after dropping missing values
 
 
 
 
     # %% 
     # PAUSE DATA CLEANING: CHECK MISSING VALUES IN CONTENT DESCRIPTOR TAGS
-
-    # Check missing values in content descriptor tags
-    missing_content_descriptor_tags = data_cleaned['content_descriptor_tags'].isnull().mean() * 100
-
-    # print("\n############### MISSING PERCENT OF CONTENT DESCRIPTOR TAGS ###############") # for readability
-    # print(f"Missing Content Descriptor Tags: {missing_content_descriptor_tags:.2f}%") # 94.39% of dataset
 
     # Assumption and Insights:
     # - 94.39% of the data is missing content descriptor tags, so we can drop this column.
@@ -277,17 +297,6 @@ def clean_steam_store_data():
 
     # %%
     # PAUSE DATA CLEANING: CHECK PERCENTAGES OF MISSING VALUES IN RECENT REVIEW COLUMNS
-
-    # Find/Calculate the percentage of missing values for recent review columns
-    # Different naming of variables to avoid confusion with the original data columns
-    percentage_missing_recent_review = data_cleaned['recent_review'].isnull().mean() * 100
-    percentage_missing_recent_review_positive_percentage = data_cleaned['recent_positive_review_percentage'].isnull().mean() * 100
-    percentage_missing_recent_review_count = data_cleaned['recent_review_count'].isnull().mean() * 100
-
-    # print("\n############### MISSING PERCENTAGES OF REVIEW COLUMNS ###############") # for readability
-    # print(f"Missing Recent Review: {percentage_missing_recent_review:.2f}%") # 87.00% of dataset
-    # print(f"Missing Recent Review Positive Percentage: {percentage_missing_recent_review_positive_percentage:.2f}%") # 87.00% of dataset
-    # print(f"Missing Recent Review Count: {percentage_missing_recent_review_count:.2f}%") # 87.00% of dataset
 
     # Assumption:
     # - 87.00% of data is missing recent review data, likely because recent reviews only happen for popular games, recent games, or games with recent updates.
@@ -311,24 +320,11 @@ def clean_steam_store_data():
     # %%
     # PAUSE DATA CLEANING: CHECK MISSING VALUES IN ORIGINAL PRICE AND DISCOUNTED PRICE
 
-    # Original price and discounted price have the same number of missing values
-    # Check again if missing original is related to free games
-    missing_price_data = data_cleaned[data_cleaned['original_price_INR'].isnull()]
-    # print(missing_price_data[['game_title', 'dlc_available', 'store_game_description', 'discounted_price_INR', 'release_date']].head()) 
-
     # Assumption and Insights:
     # - BioShock™, DEATH STRANDING DIRECTOR'S CUT, Call of Duty® are all not free games, and they are from different years.
     # - Both original and discounted prices are missing for these games, so the previous assumption that discounted price of 0 (indicating a free game) is not valid here.
     # - In the context of the dataset, it is possible these games may not have been available for purchase on the Indian Steam store at the time of scraping.
     # - It's also possible the data is missing due to scraping issues, special editions/versions, licensing issues, or other reasons.
-
-    # Find/Calculate the percentage of missing values in original and discounted prices after initial cleaning of these columns
-    # print("\n#### MISSING PERCENTAGES OF ORIGINAL AND DISCOUNTED PRICES AFTER INITIAL CLEANING ####") # for readability
-    missing_original_price_percentage = data_cleaned['original_price_INR'].isnull().mean() * 100
-    missing_discounted_price_percentage = data_cleaned['discounted_price_INR'].isnull().mean() * 100
-    # print(f"Missing Original Price: {missing_original_price_percentage:.2f}%") # 0.52% of dataset
-    # print(f"Missing Discounted Price: {missing_discounted_price_percentage:.2f}%") # 0.52% of dataset
-
     # Again, because the missing values are less than 1%, we can drop these rows without losing much info.
 
 
@@ -340,25 +336,12 @@ def clean_steam_store_data():
     data_cleaned = data_cleaned.dropna(subset=['original_price_INR', 'discounted_price_INR'])
 
     # Check cleaned dataset's shape to see how many rows remain 
-    data_cleaned.shape # (41979, 20)
+    # data_cleaned.shape # (41979, 20)
 
 
 
     # %%
     # PAUSE DATA CLEANING: CHECK MISSING VALUES IN OVERALL REVIEW COLUMNS
-
-    # Investigate missing overall reviews columns since they have the same number of missing values
-    missing_review_data = data_cleaned[data_cleaned['overall_review'].isnull()]
-    # print("#### HEAD OF MISSING OVERALL REVIEW DATA ####") # for readability
-    # print(missing_review_data[['game_title', 'store_game_description', 'original_price_INR', 'release_date', 'overall_review_count']].head())
-    # print("\n#### TAIL OF MISSING OVERALL REVIEW DATA ####") # for readability
-    # print(missing_review_data[['game_title', 'store_game_description', 'original_price_INR', 'release_date', 'overall_review_count']].tail()) 
-
-    # print("\n#### MISSING OVERALL REVIEW PERCENTAGES ####") # for readability 
-    missing_overall_review_percentage = data_cleaned['overall_review'].isnull().mean() * 100
-    missing_overall_review_count_percentag = data_cleaned['overall_review_count'].isnull().mean() * 100
-    # print(f"Missing Overall Review: {missing_overall_review_percentage:.2f}%") # 5.57%% of dataset   
-    # print(f"Missing Overall Review Count: {missing_overall_review_count_percentag:.2f}%") # 5.57% of dataset
 
     # Assumption and Insights:
     # - Recently Released Games: Games released around May 2024 haven’t had enough time to accumulate reviews (data was scraped in May 2024).
@@ -392,25 +375,44 @@ def clean_steam_store_data():
     # %%
     # PAUSE DATA CLEANING: CHECK MISSING VALUES IN ABOUT_DESCRIPTION
 
-    # Check missing values in 'store_game_description' (only 4/four missing values from checking missing values at this point)
-    missing_description_data = data_cleaned[data_cleaned['store_game_description'].isnull()]
-    missing_description_data.loc[:, :]
-
     # Assumption and Insights:
     # - These four games are seemingly missing completely at random, and there are only 4 vaules so dropping them won't affect the dataset.
 
 
 
     # %%
-    # FINAL DATA CLEANING: DROP ROWS WITH MISSING ABOUT_DESCRIPTION
+    # DATA CLEANING CONT.: DROP ROWS WITH MISSING ABOUT_DESCRIPTION AND OS SUPPORT COLUMNS
 
     # Drop rows where 'store_game_description' is missing
     data_cleaned = data_cleaned.dropna(subset=['store_game_description'])
+    
+    # Drop OS support columns (win_support, mac_support, linux_support) since they are not needed for analysis
+    data_cleaned = data_cleaned.drop(columns=['win_support', 'mac_support', 'linux_support'])
 
-    # Check cleaned dataset's shape to see how many rows remain 
-    # data_cleaned.shape # (41975, 20)
 
 
+    # FINAL DATA CLEAING: VECTORIZE TEXT FEATURES (GENRES, CATEGORIES)
+    vectorizer_save_path = config.VECTORIZERS_FOLDER
+    vectorized_results_save_path = config.VECTORIZED_RESULTS_FOLDER
+    
+    # Vectorize 'genres' and 'categories'
+    data_cleaned, genres_vectorizer = vectorize_text_features(
+        data_cleaned, 
+        'genres', 
+        max_features=100, 
+        save_vectorizer_to=vectorizer_save_path, 
+        save_vectorized_results_to=vectorized_results_save_path
+    )
+    
+    data_cleaned, categories_vectorizer = vectorize_text_features(
+        data_cleaned, 
+        'categories', 
+        max_features=100, 
+        save_vectorizer_to=vectorizer_save_path, 
+        save_vectorized_results_to=vectorized_results_save_path
+    )
+
+    # data_cleaned.info()
 
     # %% 
     # CHECK AFTER ALL DATA CLEANING (FINAL CHECK)
@@ -420,7 +422,7 @@ def clean_steam_store_data():
 
     # Final check on the cleaned data
     # data_cleaned.shape
-    # print(f"Shape of data after cleaning: {data_cleaned.shape}\n") # (41975, 20)
+    # print(f"Shape of data after cleaning: {data_cleaned.shape}\n") # (41916, 17)
     # data_cleaned.info()
     # data_cleaned.isnull().sum()
 
@@ -646,6 +648,30 @@ def save_to_csv(input_data, output_file):
 
 
 
+def save_object_to_pickle(obj, file_path):
+    """
+    Save an object to a pickle file.
+
+    Args:
+        obj (Any): The object to be pickled. This can be any serializable Python object.
+        file_path (str): Path to save the pickle file.
+
+    Returns:
+        None
+    """
+
+    # Save the object
+    try: 
+        with open(file_path, 'wb') as f:
+            pickle.dump(obj, f)
+        print(f"Pickle file (type: {type(obj).__name__}) saved at: {file_path}")
+    except Exception as e:
+        print(f"Error saving pickle file at: {file_path}. Exception: {e}")
+        print(e)
+
+
+
+
 def clean_steam_reviews_data():
     """
     Clean the Steam reviews dataset by:
@@ -797,6 +823,12 @@ def clean_steam_reviews_data():
 
 
 
+    # FEATURE ENGINEERING: ADD REVIEW LENGTH AND WORD COUNT
+    # - Helps understand the length and complexity of reviews
+    data_cleaned['review_length'] = data_cleaned['review'].str.len()
+    data_cleaned['word_count'] = data_cleaned['review'].str.split().apply(len)
+    # print(f"Data shape after adding review length and word count: {data_cleaned.shape}\n") # (61709, 26)
+
     # FEATURE ENGINEERING: ADD SENTIMENT SCORES TO THE REVIEWS
 
     # Apply sentiment analysis to reviews
@@ -808,7 +840,7 @@ def clean_steam_reviews_data():
     # Inspect sentiment distribution
     # print(data_cleaned[['compound', 'positive', 'negative', 'neutral']].describe())
     # print(data_cleaned.head())
-    # print(f"Data shape after extracting sentiment scores: {data_cleaned.shape}\n") # (61709, 28)
+    # print(f"Data shape after extracting sentiment scores: {data_cleaned.shape}\n") # (61709, 30
 
 
 

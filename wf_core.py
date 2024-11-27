@@ -21,7 +21,7 @@ def main():
     dp.generate_all_summary_stats() 
 
     # Do visualizations
-    vis.main()
+    vis.main() # NOTE: some things need to be updated in the visualization script
 
     # Compute BERT embeddings
     ml_prep.main() # Assume that we have the data already (Takes a long time to run otherwise)
