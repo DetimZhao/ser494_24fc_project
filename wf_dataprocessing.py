@@ -678,6 +678,7 @@ def clean_steam_reviews_data():
         - Dropping irrelevant columns that are not needed for analysis.
         - Removing rows with missing review text and playtime.
         - Converting epoch timestamps to datetime format.
+        - Checking for reviews after May 25, 2024, and removing them. (Based on the store data's last modified date)
         - Adding derived features such as age of review and playtime.
         - Calculating engagement metrics and playtime percentiles.
         - Filtering reviews by weighted vote score.
@@ -736,6 +737,15 @@ def clean_steam_reviews_data():
         data_cleaned['timestamp_created'] = pd.to_datetime(data_cleaned['timestamp_created'], unit='s')
         data_cleaned['timestamp_updated'] = pd.to_datetime(data_cleaned['timestamp_updated'], unit='s')
         data_cleaned['last_played'] = pd.to_datetime(data_cleaned['last_played'], unit='s')
+
+
+        # CHECK FOR REVIEWS AFTER MAY 25, 2024
+        config.log_section("CHECK REVIEWS AFTER MAY 25, 2024")        
+        may_cutoff = pd.Timestamp("2024-05-25") # based on the store data's last modified date
+        reviews_after_may = data_cleaned[data_cleaned['timestamp_created'] > may_cutoff]
+        print(f"Total reviews: {len(data_cleaned)}")
+        print(f"Reviews after May 25 2024: {len(reviews_after_may)} ({len(reviews_after_may) / len(data_cleaned) * 100:.2f}%)") # 76.61% likely due to last 6 months of reviews
+        data_cleaned = data_cleaned[data_cleaned['timestamp_created'] <= may_cutoff]  # Drop reviews after May 25, 2024
 
 
         # FEATURE ENGINEERING: ADD DERIVED FEATURES, SUCH AS AGE OF REVIEW AND PLAYTIME
@@ -857,9 +867,9 @@ def clean_steam_reviews_data():
     # FINAL CHECK ON THE CLEANED DATA
 
     # data_cleaned.shape
-    # print(f"Shape of data after cleaning: {data_cleaned.shape}\n") 
-    # data_cleaned.info()
-    # data_cleaned.isnull().sum()
+    print(f"Shape of data after cleaning: {data_cleaned.shape}\n") 
+    data_cleaned.info()
+    data_cleaned.isnull().sum()
 
     # SAVE CLEANED DATA TO A NEW CSV FILE
     cleaned_data_filename = config.STEAM_REVIEWS_DATA_CLEANED

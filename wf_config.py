@@ -84,3 +84,18 @@ def log_section(title):
     print(f'\n{border}')
     print(f'#### {title} ####')
     print(f'{border}\n')
+
+#### CREATE FOLDERS IF THEY DO NOT EXIST ####
+directories = [
+    DATA_GEN_FOLDER,
+    DATA_ORIGINAL_FOLDER,
+    DATA_PROCESSED_FOLDER,
+    VISUALIZATIONS_FOLDER,
+    MODELS_FOLDER,
+    EVALUATION_FOLDER,
+    VECTORIZERS_FOLDER,
+    VECTORIZED_RESULTS_FOLDER
+]
+for directory in directories:
+    # Create directory if it does not exist
+    os.makedirs(directory, exist_ok=True)

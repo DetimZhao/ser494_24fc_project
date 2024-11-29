@@ -147,7 +147,7 @@ def train_kmeans_model(k, train_features):
 
 
 
-def plot_elbow(features, max_clusters=10):
+def plot_elbow(features, max_clusters=20):
     """
     Plot the elbow method for determining the optimal number of clusters.
 
@@ -175,7 +175,7 @@ def plot_elbow(features, max_clusters=10):
 
 def main():
     create_training_testing_datasets() # Create training and testing datasets
-    train_kmeans_model()
+    pass
 
 if __name__ == "__main__":
     main()

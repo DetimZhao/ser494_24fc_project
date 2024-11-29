@@ -1,7 +1,8 @@
-# Fetch reviews from Steam API using the steamreviews library
+# Fetch reviews from Steam API using the steamreviews library, it fetches from now to a range of days back.
 # steamreviews saves the review data to the data/ directory as JSON files
 # steamreviews expects the input and outputs to be in root directory, so we temporarily change the working directory for this script
-# Steam reviews were last fetched on 2024-11-05
+# Steam reviews were last fetched on 2024-11-29 
+# This data will be cut off in cleaing past 2024-05-25 since that is the date of the last Steam store data fetch/modification
 
 # Import libraries
 import os
@@ -12,6 +13,8 @@ import logging
 import steamreviews
 
 import wf_config as config
+
+prompt_user_refetch = True  # Prompt user to fetch reviews again if already fetched
 
 def set_working_directory():
     """ 
@@ -52,6 +55,11 @@ def fetch_reviews(day_range=180, verbose=False):
             - filters from Steamworks API documentation: https://partner.steamgames.com/doc/store/getreviews
     """
 
+    # Ensure day_range is within the allowed limit
+    if day_range > 365:
+        logging.warning("day_range exceeds the maximum allowed limit of 365 days. Setting day_range to 365.")
+        day_range = 365
+
     # Define request parameters
     request_params = {
         'filter': 'all',        # Consider all reviews 
@@ -59,8 +67,10 @@ def fetch_reviews(day_range=180, verbose=False):
         'day_range': day_range  # Consider reviews from the last day_range days
     }
 
-    # Call the batch download function with logging around the cooldown
-    while True:
+    # Check if reviews have already been fetched. 
+    # data folder and data_gen_folder are here relative to the script NOT the root of the project (in this main() it is relative to the root)
+    already_fetched = reviews_already_fetched(data_folder="data/", data_gen_folder="./") 
+    while not already_fetched or prompt_user_refetch:
         try:
             logging.info("Starting review download batch...")
             
@@ -115,21 +125,30 @@ def reviews_already_fetched(data_folder, data_gen_folder, processed_file_prefix=
         return False
 
     # Both JSON files and the processed indicator file exist
-    print(".JSON files and processed indicator file found. Skipping fetching process.")
+    logging.info(".JSON files and processed indicator file found.")
     return True
 
 
 def main():
     config.log_section("SETUP TO FETCH REVIEWS")
 
-    output_data = os.path.join(config.DATA_GEN_FOLDER, "data")  # Folder with review JSONs
+    json_folder = os.path.join(config.DATA_GEN_FOLDER, "data")  # Folder with review JSONs
     data_gen_folder = config.DATA_GEN_FOLDER  # Folder with processed indicator file
 
     # Check if reviews have already been fetched
-    if reviews_already_fetched(output_data, data_gen_folder):
-        print("Reviews already fetched. Skipping fetching process.")
-        return  # Exit early    
-
+    if reviews_already_fetched(json_folder, data_gen_folder):
+        # Prompt user to fetch reviews again if already fetched
+        if prompt_user_refetch:
+            user_input = input("REVIEWS ALREADY FETCHED. Do you want to fetch them again? (y/n): ").strip().lower()
+            if user_input not in ['y', 'yes']:
+                print("Skipping fetching process.")
+                return  # Exit early    
+            else:
+                print("Proceeding with fetching reviews...")
+        else:
+            print("Reviews have already been fetched. Skipping the fetching process.")
+            return  # Exit early    
+        
     # Record the start time within main
     start_time = time.time()
 
@@ -142,7 +161,7 @@ def main():
     # Change to script's directory
     set_working_directory()
 
-    day_range = 180  # Number of days to consider for fetching reviews (defualt: 180 days)
+    day_range = 365  # Number of days to consider for fetching reviews (defualt: 180 days)
 
     logging.info(f"Fetching reviews for the past {day_range} days...")
 

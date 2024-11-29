@@ -13,12 +13,12 @@ from sklearn.metrics import silhouette_score
 from sklearn.metrics import calinski_harabasz_score
 from sklearn.decomposition import PCA
 
-from wf_ml_training import train_kmeans_model  # Import the training function
+from wf_ml_training import train_kmeans_model, plot_elbow  # Import the training function and elbow plot function
 from wf_ml_prediction import predict_input # Import the prediction function
 import wf_config as config
 
 
-def evaluate_kmeans_model():
+def evaluate_kmeans_model(model_to_use):
     """
     Evaluate the trained KMeans model and generate metrics.
     """
@@ -26,7 +26,7 @@ def evaluate_kmeans_model():
     logging.info("Loading trained KMeans model...")
 
     # Load the trained KMeans model
-    model_path = os.path.join(config.MODELS_FOLDER, "kmeans_model.pkl")
+    model_path = os.path.join(config.MODELS_FOLDER, model_to_use)
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Trained KMeans model not found at {model_path}. Train the model first.")
 
@@ -83,7 +83,7 @@ def evaluate_kmeans_model():
     return evaluation_results
 
 
-def evaluate_predictions():
+def evaluate_predictions(model_to_use):
     """
     Evaluate the predictions made by the trained model on a test dataset or specific inputs.
     """
@@ -91,7 +91,12 @@ def evaluate_predictions():
     logging.info("Starting evaluation of predictions...")
 
     # File paths
-    model_path = os.path.join(config.MODELS_FOLDER, "kmeans_model.pkl")
+    try: 
+        model_path = os.path.join(config.MODELS_FOLDER, model_to_use)
+        logging.info(f"Using model: {model_path}")
+    except:
+        raise FileNotFoundError("Model path not provided. Please provide a model path.")
+
     scaler_path = os.path.join(config.FEATURES_SCALER_PICKLE)
 
     # Batch input from test set
@@ -226,7 +231,7 @@ def visualize_clusters_and_sizes():
     visualize_cluster_sizes(train_labels, title="Cluster Sizes on Training Data")
 
 
-def experiment_with_features():
+def experiment_with_features(model_to_use):
     """
     Experiment with variations of specific features to observe their impact on clustering.
     """
@@ -234,7 +239,11 @@ def experiment_with_features():
     logging.info("Starting feature impact analysis...")
 
     # File paths
-    model_path = os.path.join(config.MODELS_FOLDER, "kmeans_model.pkl")
+    try: 
+        model_path = os.path.join(config.MODELS_FOLDER, model_to_use)
+        logging.info(f"Using model: {model_path}")
+    except:
+        raise FileNotFoundError("Model path not provided. Please provide a model path.")
 
     # Load the standardized `.npy` file
     train_features = np.load(config.TRAIN_FEATURES_NPY)
@@ -329,12 +338,17 @@ def experiment_with_selected_features(model_path, selected_features, feature_nam
 def main():
     # Train the KMeans model (if not already trained)
     # kmeans_model = train_kmeans_model()
+
+    k_value = 5 # Update based on elbow method plot
+    model_filename = f'kmeans_model_k{k_value}.pkl'
     
     # Evaluate the model
-    # evaluation_results = evaluate_kmeans_model()
-    
+    evaluation_results = evaluate_kmeans_model(model_to_use=model_filename)
+
+    plot_elbow(np.load(config.TRAIN_FEATURES_NPY)) # Plot the elbow method for KMeans
+
     # Evaluate specific predictions
-    evaluate_predictions()
+    evaluate_predictions(model_to_use=model_filename)
 
     # Train and evaluate alternative models
     train_and_evaluate_alternative_models() # default k values to test are [3, 4, 5]
@@ -343,7 +357,7 @@ def main():
     visualize_clusters_and_sizes()  
 
     # Experiment with feature variations
-    experiment_with_features()
+    experiment_with_features(model_to_use=model_filename)
 
 if __name__ == "__main__":
     main()

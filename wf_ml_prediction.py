@@ -8,28 +8,6 @@ import numpy as np
 
 import wf_config as config
 
-def load_model(model_path):
-    """
-    Load the KMeans model from the specified path.
-    """
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model not found at {model_path}. Train the model first.")
-    with open(model_path, 'rb') as f:
-        model = pickle.load(f)
-    logging.info(f"Model loaded from {model_path}")
-    return model
-
-def load_scaler(scaler_path):
-    """
-    Load the StandardScaler from the specified path.
-    """
-    if not os.path.exists(scaler_path):
-        raise FileNotFoundError(f"Scaler not found at {scaler_path}. Train the model first.")
-    with open(scaler_path, 'rb') as f:
-        scaler = pickle.load(f)
-    logging.info(f"Scaler loaded from {scaler_path}")
-    return scaler
-
 def predict_input(input_data, model_path, scaler_path):
     """
     Predict the cluster for the given input data using a trained KMeans model.

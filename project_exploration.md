@@ -4,9 +4,10 @@
 #### 10/20/2024
 
 ## Basic Questions
+Dataset Link: https://www.kaggle.com/datasets/amanbarthwal/steam-store-data?resource=download
 **Dataset Author(s):** Aman Barthwal (is the owner of the dataset on Kaggle).
 
-**Dataset Construction Date:** Unspecified, but the dataset was last updated 5 months ago. 
+**Dataset Construction Date:** Date Scraped: 19th, May 2024. File was last modified May 25, 2024. 
 
 **Dataset Record Count:** 42,497 
 
