@@ -739,12 +739,8 @@ def clean_steam_reviews_data():
         data_cleaned['last_played'] = pd.to_datetime(data_cleaned['last_played'], unit='s')
 
 
-        # CHECK FOR REVIEWS AFTER MAY 25, 2024
-        config.log_section("CHECK REVIEWS AFTER MAY 25, 2024")        
+        # CHECK FOR REVIEWS AFTER MAY 25, 2024, AND REMOVE THEM
         may_cutoff = pd.Timestamp("2024-05-25") # based on the store data's last modified date
-        reviews_after_may = data_cleaned[data_cleaned['timestamp_created'] > may_cutoff]
-        print(f"Total reviews: {len(data_cleaned)}")
-        print(f"Reviews after May 25 2024: {len(reviews_after_may)} ({len(reviews_after_may) / len(data_cleaned) * 100:.2f}%)") # 76.61% likely due to last 6 months of reviews
         data_cleaned = data_cleaned[data_cleaned['timestamp_created'] <= may_cutoff]  # Drop reviews after May 25, 2024
 
 

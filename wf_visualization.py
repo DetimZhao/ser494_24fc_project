@@ -256,7 +256,6 @@ def create_and_save_histograms(data_visualization):
     plt.close()
     print("Saved histogram: histogram_positive_review_percentage.png\n")
     # plt.show()
-    print("Saved histogram: histogram_positive_review_percentage.png\n")
 
 
 def inspect_outliers(data, columns_to_check):
@@ -281,14 +280,18 @@ def inspect_outliers(data, columns_to_check):
         plt.title(f"Histogram for {col}")
         plt.xlabel(col)
         plt.ylabel("Frequency")
-        plt.show()
+        plt.savefig(f'{config.VISUALIZATIONS_FOLDER}histogram_inspect_outliers_{col}.png')
+        print(f"Saved histogram for {col} to: {config.VISUALIZATIONS_FOLDER}histogram_inspect_outliers_{col}.png\n")
+        # plt.show()
 
         # Plot boxplot
         plt.figure(figsize=(10, 5))
         plt.boxplot(data[col].dropna(), vert=False, patch_artist=True)
         plt.title(f"Boxplot for {col}")
         plt.xlabel(col)
-        plt.show()
+        plt.savefig(f'{config.VISUALIZATIONS_FOLDER}boxplot_inspect_outliers_{col}.png')
+        print(f"Saved boxplot for {col} to: {config.VISUALIZATIONS_FOLDER}boxplot_inspect_outliers_{col}.png\n")
+        # plt.show()
 
 
 def check_for_outliers():
@@ -330,16 +333,57 @@ def run_all_data_visualizations(load_and_prepare_data_func):
     plt.close('all') # Cleanup
 
 
+def plot_review_creation_histogram():
+    """
+    Plot a histogram of review creation timestamps of the original reviews dataset.
+
+    Args:
+        data (pd.DataFrame): The original review data containing `timestamp_created`.
+        cutoff_date (str): The cutoff date as a string (e.g., '2024-05-25').
+    """
+
+    # Load the original reviews data
+    original_reviews_data = pd.read_csv(f'{config.DATA_ORIGINAL_FOLDER}combined_reviews.csv')
+    data = original_reviews_data.copy()
+    cutoff_date = "2024-05-25"
+
+    # Ensure `timestamp_created` is a datetime type
+    if not pd.api.types.is_datetime64_any_dtype(data['timestamp_created']):
+        data['timestamp_created'] = pd.to_datetime(data['timestamp_created'], unit='s')
+
+    # Plot the histogram using seaborn
+    print(f"Checking for reviews after {cutoff_date}...")
+    plt.figure(figsize=(10, 6))
+    num_bins = int(np.sqrt(len(data['timestamp_created'])))
+    print(f"Number of bins: {num_bins}")
+    print(f"Number of Reviews before {cutoff_date}: {len(data[data['timestamp_created'] <= cutoff_date])} out of {len(data)}")
+    print(f"Number of Reviews after {cutoff_date}: {len(data[data['timestamp_created'] > cutoff_date])} out of {len(data)}")
+    print(f"Percentage of Reviews after {cutoff_date}: {len(data[data['timestamp_created'] > cutoff_date]) / len(data) * 100:.2f}%")
+    sns.histplot(data['timestamp_created'], bins=num_bins, color='blue')
+    plt.axvline(pd.Timestamp(cutoff_date), color='red', linestyle='--', label=f'Cutoff Date: {cutoff_date}')
+    plt.title('Histogram of Review Creation Dates')
+    plt.xlabel('Review Creation Date')
+    plt.ylabel('Number of Reviews')
+    plt.legend()
+    plt.savefig(f'{config.VISUALIZATIONS_FOLDER}histogram_review_creation_dates.png')
+    print(f"Saved histogram of Review Creation Dates to: {config.VISUALIZATIONS_FOLDER}histogram_review_creation_dates.png\n")
+    # plt.show()
+
+
 def main():
     config.log_section("DATA VISUALIZATION")
 
-    run_all_data_visualizations(load_and_prepare_store_data) # Visualize store data
+    # run_all_data_visualizations(load_and_prepare_store_data) # Visualize store data
 
     # run_all_data_visualizations(load_and_prepare_reviews_data) # Visualize reviews data
 
+    # Combined data visualizations are not necessary, but it is good to have them for reference
     # check_for_outliers() # Check for outliers in the combined dataset
+    # plot_review_creation_histogram() # Plot a histogram of review creation timestamps
 
     # run_all_data_visualizations(load_and_prepare_combined_data) # Visualize combined clustering data
+
+
 
 # %%
 
