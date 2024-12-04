@@ -153,7 +153,7 @@ def train_kmeans_model(k, train_features):
     return kmeans
 
 
-def plot_elbow(features, max_clusters=20):
+def plot_elbow(features, max_clusters=20, save_as=None):
     """
     Plot the elbow method for determining the optimal number of clusters.
 
@@ -175,7 +175,7 @@ def plot_elbow(features, max_clusters=20):
     plt.xlabel("Number of Clusters")
     plt.ylabel("Inertia")
     plt.grid()
-    plt.savefig(os.path.join(config.EVALUATION_FOLDER, "KMeans Elblow plot.png"))
+    plt.savefig(os.path.join(config.EVALUATION_FOLDER, f"{save_as}_Elblow_plot.png"))
     # plt.show()
 
 

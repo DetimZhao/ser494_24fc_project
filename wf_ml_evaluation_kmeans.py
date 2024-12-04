@@ -262,12 +262,12 @@ def main():
     # Train and evaluate alternative models
     train_and_evaluate_alternative_models() # default k values to test are [3, 4, 5]
 
-    k_value_to_use = 5 # Update based on elbow method plot
+    k_value_to_use = 3 # Update based on elbow method plot
     model_filename = f'kmeans_model_k{k_value_to_use}.pkl'
     # Evaluate the model
     evaluation_results = evaluate_kmeans_model(model_to_use=model_filename)
 
-    plot_elbow(np.load(config.TRAIN_FEATURES_NPY)) # Plot the elbow method for KMeans
+    plot_elbow(np.load(config.TRAIN_FEATURES_NPY), save_as='KMeans') # Plot the elbow method for KMeans
 
     # Evaluate specific predictions
     evaluate_predictions(model_to_use=model_filename)
