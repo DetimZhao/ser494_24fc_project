@@ -75,13 +75,20 @@ def create_training_testing_datasets():
     # Concatenate the embedding columns with the combined DataFrame
     combined_data = pd.concat([combined_data, embedding_columns], axis=1)
     
-    # Optional: Drop the original avg_bert_embeddings column if it’s no longer needed
+    # Optional: Drop the original avg_bert_embeddings column if it’s no longer needed (we will in this case)
     if 'avg_bert_embeddings' in combined_data.columns:
         combined_data.drop(columns=['avg_bert_embeddings'], inplace=True)
+
+    # Verify that TF-IDF features exist
+    tfidf_columns = [col for col in combined_data.columns if col.startswith(('genres_tfidf_', 'categories_tfidf_'))]
+    logging.info(f"TF-IDF features found: {len(tfidf_columns)}")
 
     # Separate features and IDs
     app_ids = combined_data['app_id']
     features = combined_data.drop(columns=['app_id'], errors='ignore')  # Drop non-feature columns
+
+    # Ensure TF-IDF columns are included in the features
+    features = features[tfidf_columns + [col for col in features.columns if col.startswith('bert_embedding_')]]
 
     # Split into training and testing datasets (80-20 split)
     train_features, test_features, train_ids, test_ids = train_test_split(
@@ -146,7 +153,6 @@ def train_kmeans_model(k, train_features):
     return kmeans
 
 
-
 def plot_elbow(features, max_clusters=20):
     """
     Plot the elbow method for determining the optimal number of clusters.
@@ -175,7 +181,6 @@ def plot_elbow(features, max_clusters=20):
 
 def main():
     create_training_testing_datasets() # Create training and testing datasets
-    pass
 
 if __name__ == "__main__":
     main()

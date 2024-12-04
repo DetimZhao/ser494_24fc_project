@@ -10,7 +10,7 @@ import wf_ml_evaluation as ml_eval
 def main():
     
     # Clean inital Steam store data
-    # dp.clean_steam_store_data()
+    dp.clean_steam_store_data()
     
     # Generate Steam reviews data and anything necessary for it
     # dg.main() # Calls a series of other scripts to generate the reviews data

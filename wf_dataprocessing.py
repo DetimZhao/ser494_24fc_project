@@ -43,10 +43,10 @@ sia = SentimentIntensityAnalyzer()
 
 
 
-def vectorize_text_features(data, text_column, vectorizer=None, max_features=50, save_vectorizer_to=None, save_vectorized_results_to=None):
+def vectorize_text_features(data, text_column, vectorizer=None, max_features=50, save_vectorizer_to=None, save_vectorized_results_to=None, add_to_data=False):
     """
-    Vectorizes text features using TfidfVectorizer.
-
+    Vectorizes text features using TfidfVectorizer and ensures unique column names.
+    
     Args:
         data (pd.DataFrame): The dataset containing the text column to vectorize.
         text_column (str): The column name containing text data (e.g., 'genres').
@@ -54,7 +54,8 @@ def vectorize_text_features(data, text_column, vectorizer=None, max_features=50,
         max_features (int): Maximum number of features to retain.
         save_vectorizer_to (str): Directory path to save the vectorizer as a pickle file.
         save_vectorized_results_to (str): Directory path to save the vectorized results as a .npy file.
-
+        add_to_data (bool): Whether to concatenate vectorized features with the original dataset.
+    
     Returns:
         pd.DataFrame: DataFrame with vectorized features optionally added.
         TfidfVectorizer: The vectorizer used (for saving/reuse).
@@ -65,29 +66,36 @@ def vectorize_text_features(data, text_column, vectorizer=None, max_features=50,
     # Fit and transform the text column
     tfidf_matrix = vectorizer.fit_transform(data[text_column].fillna(''))
 
-    # Convert to DataFrame
-    tfidf_features = pd.DataFrame(tfidf_matrix.toarray(), columns=vectorizer.get_feature_names_out())
+    # Get feature names and ensure unique naming
+    raw_feature_names = vectorizer.get_feature_names_out()
+    unique_feature_names = [f"{text_column.split('_')[0]}_{i}_{word.split()[0]}" for i, word in enumerate(raw_feature_names)]
 
-    # Add prefix to avoid column name clashes
-    tfidf_features = tfidf_features.add_prefix(f"{text_column}_tfidf_")
+    # Convert to DataFrame
+    tfidf_features = pd.DataFrame(tfidf_matrix.toarray(), columns=unique_feature_names)
 
     # Reset index to align with the original dataset
     tfidf_features.index = data.index
 
-    # Concatenate vectorized features with original dataset (optional)
-    # data = pd.concat([data, tfidf_features], axis=1) # Uncomment to add vectorized features to the cleaned data
+    # Remove columns with all zeros
+    all_zero_columns = tfidf_features.columns[(tfidf_features == 0).all()]
+    if len(all_zero_columns) > 0:
+        print(f"WARNING: Removing {len(all_zero_columns)} columns with all zeros for {text_column}.")
+        tfidf_features.drop(columns=all_zero_columns, inplace=True)
+
+    # Concatenate vectorized features with the original dataset (optional)
+    if add_to_data:
+        # THIS IS NOT USED IN THIS CLEANING FUNCTION. We add the vectorized features to the data in the ml preprocessing script with the numpy arrays.
+        data = pd.concat([data, tfidf_features], axis=1)
 
     # Save the vectorizer for reuse
     if save_vectorizer_to:
-        if not os.path.exists(save_vectorizer_to):
-            os.makedirs(save_vectorizer_to, exist_ok=True)
+        os.makedirs(save_vectorizer_to, exist_ok=True)
         vectorizer_path = os.path.join(save_vectorizer_to, f"{text_column}_vectorizer.pkl")
         save_object_to_pickle(vectorizer, vectorizer_path)
 
     # Save the vectorized results for future analysis
     if save_vectorized_results_to:
-        if not os.path.exists(save_vectorized_results_to):
-            os.makedirs(save_vectorized_results_to, exist_ok=True)
+        os.makedirs(save_vectorized_results_to, exist_ok=True)
         results_path = os.path.join(save_vectorized_results_to, f"{text_column}_vectorized_results.npy")
         np.save(results_path, tfidf_matrix.toarray())
         print(f"Vectorized results saved to {results_path}")

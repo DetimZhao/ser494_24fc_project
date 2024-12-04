@@ -5,6 +5,7 @@
 # Import libraries
 import os
 import logging
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -182,24 +183,47 @@ def combine_bert_with_steam_data(include_vectorized_features=False, aggregation_
     if include_vectorized_features:
         genres_vectorized = np.load(os.path.join(config.VECTORIZED_RESULTS_FOLDER, 'genres_vectorized_results.npy'))
         categories_vectorized = np.load(os.path.join(config.VECTORIZED_RESULTS_FOLDER, 'categories_vectorized_results.npy'))
-
-        # Convert to DataFrame with appropriate column names
-        genres_df = pd.DataFrame(genres_vectorized, columns=[f"genres_tfidf_{i}" for i in range(genres_vectorized.shape[1])])
-        categories_df = pd.DataFrame(categories_vectorized, columns=[f"categories_tfidf_{i}" for i in range(categories_vectorized.shape[1])])
-
-        # Align indices to combined_data
-        if len(genres_df) == len(combined_data):
-            genres_df.index = combined_data.index
-            combined_data = pd.concat([combined_data, genres_df], axis=1)
+    
+        # Load the original store_data to align with app_id
+        original_store_data = pd.read_csv(config.STEAM_STORE_DATA_CLEANED)
+    
+        # Dynamically create feature names for genres
+        genres_vectorizer_path = os.path.join(config.VECTORIZERS_FOLDER, 'genres_vectorizer.pkl')
+        with open(genres_vectorizer_path, 'rb') as f:
+            genres_vectorizer = pickle.load(f)
+        genres_feature_names = [f"genres_tfidf_{term}" for term in genres_vectorizer.get_feature_names_out()]
+        aligned_genres = pd.DataFrame(
+            genres_vectorized,
+            index=original_store_data['app_id'],  # Use app_id as the index
+            columns=genres_feature_names
+        )
+    
+        # Dynamically create feature names for categories
+        categories_vectorizer_path = os.path.join(config.VECTORIZERS_FOLDER, 'categories_vectorizer.pkl')
+        with open(categories_vectorizer_path, 'rb') as f:
+            categories_vectorizer = pickle.load(f)
+        categories_feature_names = [f"categories_tfidf_{term}" for term in categories_vectorizer.get_feature_names_out()]
+        aligned_categories = pd.DataFrame(
+            categories_vectorized,
+            index=original_store_data['app_id'],  # Use app_id as the index
+            columns=categories_feature_names
+        )
+    
+        # Merge aligned genres and categories with combined_data
+        combined_data = combined_data.set_index('app_id')  # Set app_id as the index
+        if all(app_id in aligned_genres.index for app_id in combined_data.index):
+            combined_data = combined_data.join(aligned_genres, how='inner')
         else:
-            logging.warning("Genres vectorized features length does not match combined_data length. Skipping.")
-
-        if len(categories_df) == len(combined_data):
-            categories_df.index = combined_data.index
-            combined_data = pd.concat([combined_data, categories_df], axis=1)
+            logging.warning("Some app_id values in combined_data are missing from genres_vectorized. Skipping genres.")
+    
+        if all(app_id in aligned_categories.index for app_id in combined_data.index):
+            combined_data = combined_data.join(aligned_categories, how='inner')
         else:
-            logging.warning("Categories vectorized features length does not match combined_data length. Skipping.")
-
+            logging.warning("Some app_id values in combined_data are missing from categories_vectorized. Skipping categories.")
+    
+        # Reset index to preserve original structure
+        combined_data.reset_index(inplace=True)
+    
     logging.info(f"Final combined dataset shape: {combined_data.shape}")
 
     # Save combined data
@@ -217,8 +241,11 @@ def prepare_clustering_dataset():
     config.log_section("PREPARING CLUSTERING DATASET")
 
     # Combine BERT embeddings with store data
-    combined_data_mean = combine_bert_with_steam_data(include_vectorized_features=False, aggregation_method='mean') 
-    logging.info(f"Prepared clustering dataset with shape: {combined_data_mean.shape}")
+    # combined_data_mean = combine_bert_with_steam_data(aggregation_method='mean') 
+    # logging.info(f"Prepared clustering dataset with shape: {combined_data_mean.shape}") 
+    combined_data_vectorized_mean = combine_bert_with_steam_data(include_vectorized_features=True, aggregation_method='mean') 
+    logging.info(f"Prepared clustering dataset with shape: {combined_data_vectorized_mean.shape}")
+
     # print(f"combined_data stats\n: {combined_data_mean.drop(columns=['app_id']).describe().round(2)}")
     # print(combined_data_mean.info())
 
