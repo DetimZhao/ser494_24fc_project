@@ -96,3 +96,5 @@ DOI: https://doi.org/10.1155/2022/6794729
 #### Citation
 
 Zhang, Mingming, Shi, Guicheng, Consumers’ Impulsive Buying Behavior in Online Shopping Based on the Influence of Social Presence, _Computational Intelligence and Neuroscience_, 2022, 6794729, 8 pages, 2022. [https://doi.org/10.1155/2022/6794729](https://doi.org/10.1155/2022/6794729)
+
+// TODO Update the sources from the paper to the proposal?

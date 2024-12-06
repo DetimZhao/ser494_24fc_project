@@ -129,6 +129,35 @@ def create_training_testing_datasets():
     print("\nTraining and testing datasets created successfully.")
 
 
+def plot_elbow(features, max_clusters=15, title_prefix=None):
+    """
+    Plot the elbow method for determining the optimal number of clusters.
+
+    Args:
+        features (np.ndarray): Training feature array.
+        max_clusters (int): Maximum number of clusters to evaluate.
+    """
+    logging.info(f"Generating Elbow plot for KMeans with up to {max_clusters} clusters...")
+    inertias = []
+    for k in range(1, max_clusters + 1):
+        kmeans = KMeans(n_clusters=k, random_state=47, n_init=10, max_iter=300)
+        kmeans.fit(features)
+        inertias.append(kmeans.inertia_)
+
+    # Plot the inertia values
+    plt.figure(figsize=(8, 5))
+    plt.plot(range(1, max_clusters + 1), inertias, marker='o')
+    plt.title(f"{title_prefix}: Elbow Method for Optimal Clusters")
+    plt.xlabel("Number of Clusters")
+    plt.ylabel("Inertia")
+    plt.grid()
+    plt.savefig(os.path.join(config.EVALUATION_FOLDER, f"{title_prefix}_Elblow_plot.png"))
+    # plt.show()
+
+##############################################################################################################
+# KMeans Clustering
+##############################################################################################################
+
 def train_kmeans_model(k, train_features):
     """
     Train a KMeans model with a specified number of clusters (k).
@@ -152,31 +181,9 @@ def train_kmeans_model(k, train_features):
     
     return kmeans
 
-
-def plot_elbow(features, max_clusters=20, save_as=None):
-    """
-    Plot the elbow method for determining the optimal number of clusters.
-
-    Args:
-        features (np.ndarray): Training feature array.
-        max_clusters (int): Maximum number of clusters to evaluate.
-    """
-    logging.info(f"Generating Elbow plot for KMeans with up to {max_clusters} clusters...")
-    inertias = []
-    for k in range(1, max_clusters + 1):
-        kmeans = KMeans(n_clusters=k, random_state=47, n_init=10, max_iter=300)
-        kmeans.fit(features)
-        inertias.append(kmeans.inertia_)
-
-    # Plot the inertia values
-    plt.figure(figsize=(8, 5))
-    plt.plot(range(1, max_clusters + 1), inertias, marker='o')
-    plt.title("Elbow Method for Optimal Clusters")
-    plt.xlabel("Number of Clusters")
-    plt.ylabel("Inertia")
-    plt.grid()
-    plt.savefig(os.path.join(config.EVALUATION_FOLDER, f"{save_as}_Elblow_plot.png"))
-    # plt.show()
+##############################################################################################################
+# Agglomerative Clustering
+##############################################################################################################
 
 
 def main():

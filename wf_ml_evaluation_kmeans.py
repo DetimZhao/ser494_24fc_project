@@ -144,7 +144,7 @@ def train_and_evaluate_alternative_models(k_values=[3, 4, 5]):
         })
 
     # Save results to summary file
-    summary_file_path = os.path.join(config.EVALUATION_SUMMARY_TEXT_FILE)
+    summary_file_path = os.path.join(config.EVALUATION_FOLDER, f"KMeans_{config.EVALUATION_SUMMARY_TEXT_FILE}")
     with open(summary_file_path, "w") as f:
         for result in results:
             f.write(f"k={result['k']}, Silhouette Score={result['silhouette_train']}, "
@@ -267,7 +267,7 @@ def main():
     # Evaluate the model
     evaluation_results = evaluate_kmeans_model(model_to_use=model_filename)
 
-    plot_elbow(np.load(config.TRAIN_FEATURES_NPY), save_as='KMeans') # Plot the elbow method for KMeans
+    plot_elbow(np.load(config.TRAIN_FEATURES_NPY), title_prefix='KMeans') # Plot the elbow method for KMeans
 
     # Evaluate specific predictions
     evaluate_predictions(model_to_use=model_filename)

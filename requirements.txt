@@ -13,3 +13,5 @@ transformers==4.46.3
 
 # Optional for apple silicon users
 tensorflow-metal==1.1.0
+
+# TODO: fix this requirements.txt file to align with current versions of libraries
