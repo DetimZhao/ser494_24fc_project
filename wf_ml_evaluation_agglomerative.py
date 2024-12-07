@@ -107,7 +107,7 @@ def plot_dendrogram(linkage_matrix, title="Dendrogram for Hierarchical Clusterin
     # Generate sparse labels for clarity
     labels_list = [f"Sample {i}" if i % label_interval == 0 else "" for i in range(len(linkage_matrix) + 1)]
 
-    # Plot dendrogram
+    # Plot dendrogram   
     plt.figure(figsize=(14, 10))
     dendrogram(
         linkage_matrix,               # Precomputed linkage matrix
@@ -176,89 +176,102 @@ def visualize_clusters(features, labels, title="Hierarchical Cluster Visualizati
     plt.ylabel("PCA Component 2")
     save_path = os.path.join(config.EVALUATION_FOLDER, "Hierarchical_Cluster_Visualization.png")
     plt.savefig(save_path)
-    logging.info(f"Cluster visualization plot saved to: {save_path}")
+    print(f"Cluster visualization plot saved to: {save_path}")
     plt.close()
 
 
-def custom_distance(record1, record2, feature_weights=None):
+def custom_distance(record1, record2, column_names=None, feature_weights=None, start_euclidean_index=124):
     """
     Computes a custom distance metric between two records.
-    
+
     Args:
-        record1 (pd.Series): The first record (row from a DataFrame).
-        record2 (pd.Series): The second record (row from a DataFrame).
-        feature_weights (dict): A dictionary mapping feature names to weights (optional).
-        
+        record1 (np.ndarray): The first record (row from the dataset).
+        record2 (np.ndarray): The second record (row from the dataset).
+        column_names (list): List of column names for the features (optional).
+        feature_weights (dict): A dictionary mapping feature names to weights for custom distances (optional).
+        start_euclidean_index (int): The index at which Euclidean-only features (e.g., embeddings) start.
+
+    Notes:
+        - 124 is the default index for embeddings since that is based on the shape of the data.  
+
     Returns:
         float: The calculated distance between record1 and record2.
     """
     # Initialize distance
     distance = 0.0
 
-    # Define features for custom handling
-    numeric_features = [
-        'original_price_INR', 
-        'percentage_of_original_price', 
-        'discounted_price_INR',
-        'dlc_available', 
-        'awards_count', 
-        'overall_positive_review_percentage', 
-        'overall_review_count',
-        'mean_compound', 
-        'mean_positive', 
-        'mean_negative', 
-        'mean_neutral', 
-        'mean_engagement_ratio',
-        'mean_playtime_percentile_review', 
-        'mean_playtime_percentile_total', 
-        'mean_votes_up', 
-        'mean_votes_funny',
-        'mean_weighted_vote_score', 
-        'median_playtime_at_review', 
-        'mean_review_length', 
-        'mean_word_count'
-    ]
-    # Define the boolean features
-    boolean_features = ['age_restricted']
-    
-    tfidf_features = [col for col in record1.index if col.startswith('genres_tfidf_') or col.startswith('categories_tfidf_')]
+    # Custom handling for named features (if provided)
+    if column_names:
+        numeric_features = [
+            'original_price_INR', 'percentage_of_original_price', 'discounted_price_INR',
+            'dlc_available', 'awards_count', 'overall_positive_review_percentage',
+            'overall_review_count', 'mean_compound', 'mean_positive', 'mean_negative',
+            'mean_neutral', 'mean_engagement_ratio', 'mean_playtime_percentile_review',
+            'mean_playtime_percentile_total', 'mean_votes_up', 'mean_votes_funny',
+            'mean_weighted_vote_score', 'median_playtime_at_review', 'mean_review_length',
+            'mean_word_count'
+        ]
+        boolean_features = ['age_restricted']
 
-    # Compute distances
-    for feature in numeric_features:
-        weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
-        distance += weight * (record1[feature] - record2[feature]) ** 2 # 
+        # Process numeric and boolean features
+        for feature in numeric_features:
+            index = column_names.index(feature)
+            weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
+            distance += weight * (record1[index] - record2[index]) ** 2
 
-    for feature in boolean_features:
-        weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
-        distance += weight * (record1[feature] != record2[feature])  # Binary distance
+        for feature in boolean_features:
+            index = column_names.index(feature)
+            weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
+            distance += weight * (record1[index] != record2[index])  # Binary distance
 
-    for feature in tfidf_features:
-        weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
-        distance += weight * (record1[feature] - record2[feature]) ** 2 # 
+    # Compute Euclidean distance for embeddings (from start_euclidean_index onward)
+    distance += np.sum((record1[start_euclidean_index:] - record2[start_euclidean_index:]) ** 2)
 
-    # Return the square root to get the Euclidean distance
     return np.sqrt(distance)
 
 
-def compute_distance_matrix(features, metric='euclidean'):
+
+
+def compute_distance_matrix(features, feature_weights=None, column_names=None):
     """
-    Compute a pairwise distance matrix using an optimized approach.
+    Compute a pairwise distance matrix using a custom distance function.
 
     Args:
         features (np.ndarray): The input feature matrix.
-        metric (str): The distance metric to use (default is 'euclidean').
+        feature_weights (dict): A dictionary mapping feature names to weights for custom distances (optional).
+        column_names (list): List of column names for the features (optional). If None, assume embeddings start dynamically.
 
     Returns:
         np.ndarray: A 2D distance matrix.
     """
     config.log_section("Computing Pairwise Distance Matrix")
-    if not isinstance(features, np.ndarray):
-        features = np.array(features)
+    n_samples, n_features = features.shape
 
-    logging.info(f"Computing pairwise distance matrix using {metric} metric...")
-    # Use scipy's cdist for efficient pairwise distance computation
-    distance_matrix = cdist(features, features, metric=metric)
-    logging.info(f"Distance matrix completed. Final shape: {distance_matrix.shape}")
+    # Dynamically set start index for embeddings if column names are missing
+    if column_names:
+        start_euclidean_index = len(column_names)  # Embeddings start where named features end
+    else:
+        start_euclidean_index = 124  # Default if no column names are provided
+
+    logging.info(f"Start index for Euclidean distance features: {start_euclidean_index}")
+
+    # Initialize distance matrix
+    distance_matrix = np.empty((n_samples, n_samples))
+
+    # Compute pairwise distances
+    logging.info("Computing custom distances...")
+    for i in range(n_samples):
+        for j in range(i + 1, n_samples):  # Upper triangle computation
+            distance_matrix[i, j] = custom_distance(
+                record1=features[i],
+                record2=features[j],
+                column_names=column_names,
+                feature_weights=feature_weights,
+                start_euclidean_index=start_euclidean_index,
+            )
+            distance_matrix[j, i] = distance_matrix[i, j]  # Symmetric
+
+    logging.info(f"Distance matrix completed. Shape: {distance_matrix.shape}")
     return distance_matrix
 
 
@@ -267,8 +280,135 @@ def main():
     train_features_path = config.TRAIN_FEATURES_NPY
     train_features = np.load(train_features_path)  # Use standardized training features
 
-    # Compute distance matrix
-    distance_matrix = compute_distance_matrix(train_features)
+    # Column names of combined dataset features for custom distance computation
+    column_names = [
+        'original_price_INR',
+        'percentage_of_original_price',
+        'discounted_price_INR',
+        'dlc_available',
+        'age_restricted',
+        'awards_count',
+        'overall_positive_review_percentage',
+        'overall_review_count',
+        'overall_review_encoded',
+        'mean_compound',
+        'mean_positive',
+        'mean_negative',
+        'mean_neutral',
+        'mean_engagement_ratio',
+        'mean_playtime_percentile_review',
+        'mean_playtime_percentile_total',
+        'mean_votes_up',
+        'mean_votes_funny',
+        'mean_weighted_vote_score',
+        'median_playtime_at_review',
+        'mean_review_length',
+        'mean_word_count',
+        'genres_tfidf_access',
+        'genres_tfidf_action',
+        'genres_tfidf_adventure',
+        'genres_tfidf_animation',
+        'genres_tfidf_audio',
+        'genres_tfidf_casual',
+        'genres_tfidf_design',
+        'genres_tfidf_development',
+        'genres_tfidf_early',
+        'genres_tfidf_education',
+        'genres_tfidf_free',
+        'genres_tfidf_game',
+        'genres_tfidf_illustration',
+        'genres_tfidf_indie',
+        'genres_tfidf_massively',
+        'genres_tfidf_modeling',
+        'genres_tfidf_movie',
+        'genres_tfidf_multiplayer',
+        'genres_tfidf_play',
+        'genres_tfidf_production',
+        'genres_tfidf_publishing',
+        'genres_tfidf_racing',
+        'genres_tfidf_rpg',
+        'genres_tfidf_simulation',
+        'genres_tfidf_software',
+        'genres_tfidf_sports',
+        'genres_tfidf_strategy',
+        'genres_tfidf_to',
+        'genres_tfidf_training',
+        'genres_tfidf_utilities',
+        'genres_tfidf_video',
+        'genres_tfidf_web',
+        'categories_tfidf_about',
+        'categories_tfidf_achievements',
+        'categories_tfidf_anti',
+        'categories_tfidf_app',
+        'categories_tfidf_available',
+        'categories_tfidf_captions',
+        'categories_tfidf_cards',
+        'categories_tfidf_cheat',
+        'categories_tfidf_cloud',
+        'categories_tfidf_co',
+        'categories_tfidf_collectibles',
+        'categories_tfidf_commentary',
+        'categories_tfidf_controller',
+        'categories_tfidf_cross',
+        'categories_tfidf_editor',
+        'categories_tfidf_enabled',
+        'categories_tfidf_family',
+        'categories_tfidf_features',
+        'categories_tfidf_game',
+        'categories_tfidf_hdr',
+        'categories_tfidf_hl2',
+        'categories_tfidf_in',
+        'categories_tfidf_includes',
+        'categories_tfidf_is',
+        'categories_tfidf_lan',
+        'categories_tfidf_leaderboards',
+        'categories_tfidf_learning',
+        'categories_tfidf_level',
+        'categories_tfidf_limited',
+        'categories_tfidf_mmo',
+        'categories_tfidf_mods',
+        'categories_tfidf_multiplayer',
+        'categories_tfidf_notifications',
+        'categories_tfidf_on',
+        'categories_tfidf_online',
+        'categories_tfidf_only',
+        'categories_tfidf_op',
+        'categories_tfidf_phone',
+        'categories_tfidf_platform',
+        'categories_tfidf_play',
+        'categories_tfidf_player',
+        'categories_tfidf_profile',
+        'categories_tfidf_purchases',
+        'categories_tfidf_pvp',
+        'categories_tfidf_remote',
+        'categories_tfidf_require',
+        'categories_tfidf_screen',
+        'categories_tfidf_sdk',
+        'categories_tfidf_shared',
+        'categories_tfidf_sharing',
+        'categories_tfidf_single',
+        'categories_tfidf_source',
+        'categories_tfidf_split',
+        'categories_tfidf_stats',
+        'categories_tfidf_steam',
+        'categories_tfidf_steamvr',
+        'categories_tfidf_support',
+        'categories_tfidf_supported',
+        'categories_tfidf_tablet',
+        'categories_tfidf_this',
+        'categories_tfidf_together',
+        'categories_tfidf_tracked',
+        'categories_tfidf_trading',
+        'categories_tfidf_turn',
+        'categories_tfidf_tv',
+        'categories_tfidf_valve',
+        'categories_tfidf_vr',
+        'categories_tfidf_workshop'
+    ] 
+
+    # Compute custom distance matrix
+    logging.info("Computing custom distance matrix...")
+    distance_matrix = compute_distance_matrix(features=train_features, column_names=column_names)
 
     # Evaluate Agglomerative Clustering
     evaluation_results, linkage_matrix, train_labels, model = evaluate_agglomerative_clustering(

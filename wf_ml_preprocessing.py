@@ -60,6 +60,7 @@ def compute_bert_embeddings(texts, tokenizer, model, max_length=512, batch_size=
 
 
 def extract_bert_embeddings():
+    """Extract BERT embeddings for Steam reviews and save them to a .npy file. This is used to load it later."""
     config.log_section("BERT EMBEDDING EXTRACTION")
     
     # Save embeddings as a .npy file
@@ -98,9 +99,9 @@ def extract_bert_embeddings():
 
 
 
-def combine_bert_with_steam_data(include_vectorized_features=False, aggregation_method='mean'):
+def combine_all_steam_data(include_vectorized_features=False, aggregation_method='mean'):
     """
-    Combines BERT embeddings, sentiment scores, review features, and store metadata
+    Combines sentiment scores, review features, and store metadata
     for clustering, with optional inclusion of vectorized genres and categories.
 
     Args:
@@ -236,14 +237,12 @@ def combine_bert_with_steam_data(include_vectorized_features=False, aggregation_
 
 def prepare_clustering_dataset():
     """
-    Combines BERT embeddings with store data for clustering.
+    Combines store data with review data for clustering.
     """
     config.log_section("PREPARING CLUSTERING DATASET")
 
-    # Combine BERT embeddings with store data
-    # combined_data_mean = combine_bert_with_steam_data(aggregation_method='mean') 
-    # logging.info(f"Prepared clustering dataset with shape: {combined_data_mean.shape}") 
-    combined_data_vectorized_mean = combine_bert_with_steam_data(include_vectorized_features=True, aggregation_method='mean') 
+    # Prepare clustering dataset with mean aggregation
+    combined_data_vectorized_mean = combine_all_steam_data(include_vectorized_features=True, aggregation_method='mean') 
     logging.info(f"Prepared clustering dataset with shape: {combined_data_vectorized_mean.shape}")
 
     # print(f"combined_data stats\n: {combined_data_mean.drop(columns=['app_id']).describe().round(2)}")
