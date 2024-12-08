@@ -93,7 +93,7 @@ def evaluate_agglomerative_clustering():
         linkage_matrix=linkage_matrix,
         title="Dendrogram for Agglomerative Clustering",
         label_interval=10,
-        p=10,
+        p=75,
         cluster_thresholds=n_clusters_list
     )
 
