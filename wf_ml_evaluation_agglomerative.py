@@ -12,13 +12,14 @@ import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA   
 from sklearn.preprocessing import PowerTransformer, StandardScaler
-from umap import UMAP
-# for umap.plot to work: pip install datashader bokeh holoviews scikit-image colorcet
-# not necessary for the code to run, so not included in requirements.txt, but can be added if curious
-from umap.plot import points 
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
 from scipy.cluster.hierarchy import dendrogram
+# not necessary for the code to run, so not included in requirements.txt, but can be added if curious
+# for umap to work: pip install umap-learn
+# for umap.plot to work: pip install datashader bokeh holoviews scikit-image colorcet
+# from umap import UMAP 
+# from umap.plot import points 
 
 import wf_config as config
 from wf_ml_training import train_agglomerative_clustering
