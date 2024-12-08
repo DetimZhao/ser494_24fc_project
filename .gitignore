@@ -51,16 +51,8 @@ __pycache__/
 # Ignore virtual environment
 .venv
 
-# Ignore visualizations 
-visuals/*.png
-
 # Ignore tests
 tests/
-
-# Ignore models
-models/ 
-
-# TODO: when preparing for final submission, remove the ignores for visuals and models
 
 # Ignore Umap plots, they weren't very meaningful and just for exploration
 evaluation/umap_plots/

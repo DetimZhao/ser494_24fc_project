@@ -5,96 +5,55 @@
 #### Anonymous
 
 #### 10/28/2024
+#### Last edited: 12/7/2024
 
   
+
+## Keywords
+
+**Game Review Sentiment Analysis, Steam Game Clustering, Consumer Patterns in Gaming**
 
 ---
 
-  
-
-## Keywords:
-
-Game Review Sentiment Analysis, Steam Game Clustering, Consumer Patterns in Gaming
-
-  
-
----
-
-  
-
-1. Game Review Sentiment Analysis
-2. Steam Game Clustering
-3. Consumer Patterns in Gaming
-
-
-  
 ## Description: 
 This project centers on clustering Steam games using a range of attributes, including user review sentiment, genre, category, and more, to uncover distinct patterns that reflect consumer preferences. By analyzing these factors, the study aims to identify clusters of games that can guide developers, marketers, and consumers alike. This approach may help consumers find games that align with their interests across a range of factors they may not have initially considered, such as genre, price, category, or sentiment trends in user reviews. The clusters generated from this analysis could serve as a useful tool for navigating the expansive game library on Steam, helping players discover titles that align closely with their preferences and play style. It may also offer valuable information for developers and marketers who seek to understand and respond to user feedback more effectively.
-  
+ 
 
+---
 
-## Research Questions (ROs):
-- RO1: To describe the trends within the Steam game data, focusing on features such as review sentiment, genre, category, and pricing.
-- RO2: To cluster games based on their review sentiment, genre, and other attributes to identify distinct groupings that reflect various consumer patterns and preferences.
-- RO3: To evaluate the defensibility of the clustering model used in RO2, ensuring its reliability in accurately grouping games based on user preferences.
-- RO4: To analyze and interpret the relationships within the clustered groups to understand how factors like genre and review sentiment correlate with consumer engagement and satisfaction.
+## Research Objectives (ROs)
 
+1. **RO1**: To analyze consumer preferences and satisfaction as captured in user reviews, as well as store metadata and its connection to a game's success. 
+2. **RO2**: To utilize clustering algorithms for grouping games into meaningful categories, enabling insights into consumer engagement and trends in gaming.
+3. **RO3**: To explore the integration of sentiment analysis within clustering models, revealing patterns of user feedback that align with game metadata and consumer satisfaction.
+4. **RO4**: To examine the potential for using clustered data to improve decision-making for personalized game recommendations and market strategy development.
 
+---
 
-## Intellectual Merit: 
-The potential of this project is in advancing knowledge around user behavior and game characteristics in the digital gaming market, particularly through novel combinations of review sentiment analysis and clustering of game features. By leveraging diverse game attributes—such as genre, category, pricing, and review sentiment—this project will explore nuanced consumer patterns within the gaming ecosystem. The clustering outcomes have the potential to uncover previously unobserved correlations between game attributes and user satisfaction, helping to identify what defines different types of games from a consumer’s perspective. This research could reveal new insights into how specific game features influence user preferences, and ultimately, how they drive engagement and satisfaction in different gaming niches. These insights can contribute meaningfully to fields like digital marketing, game development, and consumer behavior analysis, offering data-driven strategies for better understanding and meeting the needs of diverse gaming audiences.
+## Intellectual Merit
 
-  
-  
+The potential of this project lies in advancing knowledge around user behavior and game characteristics in the digital gaming market, particularly through novel combinations of review sentiment analysis and clustering of game features. By leveraging diverse game attributes—such as genre, category, pricing, and review sentiment—this project explores nuanced consumer patterns within the gaming ecosystem. 
 
-## Data Sourcing: 
-This project primarily uses data sourced from the Steam Store, a platform that provides detailed game information, including game titles, genres, pricing, user reviews, and more. The Steam Store data offers a foundation for understanding the primary attributes of each game, which are essential for clustering analysis. To incorporate review sentiment analysis, this project will retrieve individual game review data using the Steam Web API, which allows access to publicly available user reviews and metadata. It may also use a python package. For the sentiment analysis of review text, the data will be preprocessed using a Python package such as TextBlob or VADER, which are widely used for analyzing sentiment in natural language text.
-  
-  
+The clustering outcomes aim to uncover previously unobserved correlations between game attributes and user satisfaction, helping to identify what defines different types of games from a consumer’s perspective. This research could reveal new insights into how specific game features influence user preferences and, ultimately, how they drive engagement and satisfaction in different gaming niches. These insights can contribute meaningfully to fields like digital marketing, game development, and consumer behavior analysis, offering data-driven strategies for better understanding and meeting the needs of diverse gaming audiences.
 
-## Background Knowledge: 
-###  How Price Sensitivity Affects Consumer Buying Behavior:
-- This article explores how price sensitivity and promotional pricing influence consumer decisions in e-commerce, providing knowledge into the effectiveness of discount strategies in driving impulse buys and long-term customer retention.
-- Link: https://stores-goods.com/blog/consumer-behavior/how-price-sensitivity-affects-consumer-buying/
+---
 
-### How Price Sensitivity Analysis Can Reveal Consumer Behavior:
-- This source discusses the importance of understanding price sensitivity to optimize pricing strategies and drive sales. It covers how consumers react to price changes and why price elasticity is crucial for maximizing revenue.
-- Link: https://borderlessaccess.com/blog/understanding-how-customer-behavior-is-shaped-by-price-sensitivity/
+## Related Work
 
-### The Psychology of Discounts: 8 Researched-Backed Strategies:
-- This article delves into the psychological tactics behind discounts, such as urgency and scarcity, and how they motivate consumers to act quickly. It emphasizes the importance of simple pricing and the influence of ending prices in .99.
-- Link: https://www.namogoo.com/blog/consumer-behavior-psychology/psychology-of-discounts/
+1. **Steam Sentiment Analysis**:
+   Zuo (2018) conducted a comprehensive sentiment analysis of Steam product reviews, employing Naive Bayes and Decision Tree classifiers. The study detailed the process from data collection to classification, highlighting the effectiveness of these classifiers in predicting sentiments within user-generated content.
 
-## Related Work: 
+2. **Steam Insider System**:
+   The "Steam Insider" system utilizes unsupervised machine learning techniques for aspect-based sentiment analysis and text summarization of video game reviews on Steam. By extracting key aspects from user reviews and performing sentiment analysis, the system provides valuable insights for developers and marketers, aiding in understanding user feedback at a granular level.
 
-### A meta-analysis of the impact of price presentation on perceived savings
+3. **Enhancing Collaborative Filtering**:
+   Karablia et al. (2023) proposed an enhancement to collaborative filtering-based recommender systems by integrating sentiment analysis. Their approach leverages the sentiments expressed in user reviews to improve recommendation accuracy and personalization, demonstrating the significance of user sentiment in refining recommendation relevance.
 
-DOI: https://doi.org/10.1016/S0022-4359(02)00072-6
-- Many findings, here are a few:
-	- Consumers value savings on bundles less as the bundle size increases. This finding is open to multiple hypotheses as to the cause and would be fruitful area for future research.
-	- Deals are more effective if they are less consistent (predictable) and more distinctive.
-	- Including free gifts in general lowers the perceived value of the deal.
-#### Citation
+4. **Transformer-Based Sentiment Models**:
+   "Sentiment Analysis of Steam Reviews Using Transformer Models" investigates the application of advanced transformer-based models, specifically BERT and RoBERTa, for sentiment analysis on a substantial dataset of over 6.4 million English-language Steam reviews. The study emphasizes the challenges posed by informal language, slang, and typographical errors commonly found in user-generated content like game reviews.
 
-Aradhna Krishna, Richard Briesch, Donald R. Lehmann, Hong Yuan,
-A meta-analysis of the impact of price presentation on perceived savings,
-Journal of Retailing,
-Volume 78, Issue 2,
-2002,
-Pages 101-118,
-ISSN 0022-4359,
-https://doi.org/10.1016/S0022-4359(02)00072-6.
-(https://www.sciencedirect.com/science/article/pii/S0022435902000726)
-Keywords: Meta analysis; Behavioral pricing; Reference price; Pricing; Promotions; Consumer behavior
+5. **Fine-Grained Sentiment Extraction**:
+   Raison et al. (2012) introduced a method to extract fine-grained user opinions from game reviews by employing adjective-context co-clustering. This approach identifies specific game aspects and their associated qualities, providing deeper insights into user sentiments.
 
-
-### Consumers' Impulsive Buying Behavior in Online Shopping Based on the Influence of Social Presence
-
-DOI: https://doi.org/10.1155/2022/6794729
-- The concept of social presence comes from the field of psychology. It has attracted attention from brand management, marketing, and communication studies. Second, the academic contributions of this study mainly include the following two aspects: the variables affect the social presence of platforms and establishing the relevant of impulsive buying behaviors. 
-
-#### Citation
-
-Zhang, Mingming, Shi, Guicheng, Consumers’ Impulsive Buying Behavior in Online Shopping Based on the Influence of Social Presence, _Computational Intelligence and Neuroscience_, 2022, 6794729, 8 pages, 2022. [https://doi.org/10.1155/2022/6794729](https://doi.org/10.1155/2022/6794729)
-
-// TODO Update the sources from the paper to the proposal?
+6. **Predicting Customer Churn with Sentiment Analysis**:
+   Abdul-Rahman et al. (2024) presented a novel approach to predicting customer churn by integrating sentiment analysis of user-generated reviews from the Steam platform into churn forecasting models. The study demonstrated that incorporating sentiment analysis of user reviews significantly enhances the accuracy of churn forecasting models, providing valuable insights for businesses aiming to reduce churn and improve customer satisfaction.

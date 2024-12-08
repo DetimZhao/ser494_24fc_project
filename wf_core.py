@@ -13,17 +13,17 @@ def main():
     dp.clean_steam_store_data()
     
     # Generate Steam reviews data and anything necessary for it
-    # dg.main() # Calls a series of other scripts to generate the reviews data
+    dg.main() # Calls a series of other scripts to generate the reviews data
     
     # Clean Steam review data
     # TAKES LIKE 30 SECONDS, comment out if you don't want to run it
-    # dp.clean_steam_reviews_data()
+    dp.clean_steam_reviews_data()
 
     # Generate Summary Stats 
-    # dp.generate_all_summary_stats()
+    dp.generate_all_summary_stats()
 
     # Do visualizations
-    # vis.main() # NOTE: some things need to be updated in the visualization script
+    vis.main()
 
     # Compute BERT embeddings and combine datasets 
     ml_prep.main() # Assume that we have the data already (Takes a long time to run otherwise)
