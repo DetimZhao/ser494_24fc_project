@@ -118,7 +118,6 @@ def clean_steam_store_data():
         - Imputing missing values in overall review columns.
         - Dropping rows with missing about_description.
         - Dropping rows with missing OS support columns.
-        - TODO: Add more cleaning steps as needed.
         - Saving the cleaned data to a new CSV file.
 
     Returns:
@@ -905,8 +904,6 @@ def main():
 
     # Clean the Steam Reviews data
     # clean_steam_reviews_data()
-
-    # TODO - CLEAN UP THIS FILE TO BE MORE READABLE AND ORGANIZED (FUNCTIONS, COMMENTS, ETC.)
 
 if __name__ == '__main__':
     main()

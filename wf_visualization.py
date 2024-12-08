@@ -1,4 +1,6 @@
 # Import libraries
+import os
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -142,40 +144,63 @@ def load_and_prepare_combined_data():
 # %%
 # CREATE CORRELATION MATRIX AND SAVE TO FILE
 
-def create_and_save_correlation_matrix(data_visualization, quantitative_columns):
-    # TODO - Fix the function to take in either the store or review data 
+def create_and_save_correlation_matrix(data_visualization, quantitative_columns, dataset_type=None):
+    """
+    Create, display, and save the correlation matrix and heatmap for quantitative features.
+
+    Args:
+        data_visualization (pd.DataFrame): The dataset to visualize correlations from.
+        quantitative_columns (list): List of quantitative columns to include in the correlation matrix.
+        dataset_type (str): The type of dataset ("store", "review", or "combined"), used to differentiate file outputs.
+    """
+    # Validate dataset_type
+    if dataset_type not in ["store", "review", "combined"]:
+        raise ValueError(f"Invalid dataset_type '{dataset_type}'. Must be 'store', 'review', or 'combined'.")
 
     # Calculate the correlation matrix
-    correlation_matrix = data_visualization[quantitative_columns].corr().round(2)
+    try:
+        correlation_matrix = data_visualization[quantitative_columns].corr().round(2)
+    except KeyError as e:
+        print(f"Error: Some quantitative columns are missing from the dataset: {e}")
+        return
 
-    # Display the correlation matrix
-    formatted_corr_matrix = correlation_matrix.to_string() 
+    # Format correlation matrix for display and save as text
+    formatted_corr_matrix = correlation_matrix.to_string()
 
-    # File path and filename to save to
-    corr_matrix_file_name = 'correlations.txt'
-    corr_matrix_file_path = f'data_processed/{corr_matrix_file_name}'
+    # File paths for saving
+    base_folder = config.DATA_PROCESSED_FOLDER
+    corr_matrix_file_name = f"{dataset_type}_correlations.txt"
+    corr_matrix_file_path = os.path.join(base_folder, corr_matrix_file_name)
+    corr_matrix_heatmap_file_name = f"{dataset_type}_correlations.png"
+    corr_matrix_heatmap_file_path = os.path.join(base_folder, corr_matrix_heatmap_file_name)
 
-    # Save the correlation matrix to a file
+    # Save the correlation matrix to a text file
     try:
         with open(corr_matrix_file_path, 'w') as f:
             f.write(formatted_corr_matrix)
-        print(f"Correlation Matrix saved successfully to path: {corr_matrix_file_path}\n")
+        print(f"Correlation Matrix saved successfully to: {corr_matrix_file_path}\n")
     except Exception as e:
-        print(f"Error saving Correlation Matrix to path: {corr_matrix_file_path}\n")
-        print(e)
+        print(f"Error saving Correlation Matrix to: {corr_matrix_file_path}\n{e}")
 
-    # File path and filename to save to
-    corr_matrix_heatmap_file_name = 'correlations.png'
-    corr_matrix_heatmap_file_path = f'{config.VISUALIZATIONS_FOLDER}{corr_matrix_heatmap_file_name}'
+    # Save the correlation heatmap
+    try:
+        plt.figure(figsize=(12, 10))
+        mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))
+        sns.heatmap(
+            correlation_matrix,
+            mask=mask,
+            annot=True,
+            cmap="coolwarm",
+            fmt=".2f",
+            linewidths=0.5
+        )
+        plt.title(f"Correlation Matrix ({dataset_type.capitalize()} Quantitative Features)")
+        plt.savefig(corr_matrix_heatmap_file_path)
+        print(f"Correlation Matrix heatmap saved successfully to: {corr_matrix_heatmap_file_path}\n")
+    except Exception as e:
+        print(f"Error saving Correlation Matrix heatmap to: {corr_matrix_heatmap_file_path}\n{e}")
 
-    # Save the correlation matrix heatmap to a file
-    # Create a heatmap to visualize the correlations (half matrix)
-    plt.figure(figsize=(12, 10))  
-    mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))  
-    sns.heatmap(correlation_matrix, mask=mask, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)  
-    plt.title("Correlation Matrix (Quantitative Features)")  
-    plt.savefig(corr_matrix_heatmap_file_path)
-    # plt.show()
+    # Close all plots to free resources
     plt.close('all')
 
 
@@ -183,32 +208,62 @@ def create_and_save_correlation_matrix(data_visualization, quantitative_columns)
 # CREATE SCATTER PLOTS FOR QUANTITATIVE COLUMNS
 
 # Create scatter plots for all pairs of quantitative features 
-def create_and_save_scatterplot(data_visualization, quantitative_columns):
-    # TODO - make axis log scale when necessary
+def create_and_save_scatterplot(data_visualization, quantitative_columns, dataset_type=None):
+    """
+    Create and save scatterplots for all pairs of quantitative features, with automatic log scaling if necessary.
+
+    Args:
+        data_visualization (pd.DataFrame): The dataset to visualize.
+        quantitative_columns (list): List of quantitative columns to include in scatterplots.
+        dataset_type (str): The type of dataset ("store", "review", or "combined"), used for saving outputs.
+    """
+    def needs_log_scale(series):
+        """
+        Determine if a column needs log scaling.
+
+        Args:
+            series (pd.Series): The column to analyze.
+
+        Returns:
+            bool: True if log scaling is recommended, False otherwise.
+        """
+        if series.min() <= 0:  # Log scale not possible for non-positive values
+            return False
+        return series.max() / series.min() > 100  # Arbitrary threshold for high range
+
     for i in range(len(quantitative_columns)):
         for j in range(i + 1, len(quantitative_columns)):
+            x_col = quantitative_columns[i]
+            y_col = quantitative_columns[j]
+
             plt.figure(figsize=(12, 8))
-            sns.scatterplot(x=data_visualization[quantitative_columns[i]], 
-                            y=data_visualization[quantitative_columns[j]],
+            sns.scatterplot(x=data_visualization[x_col], 
+                            y=data_visualization[y_col],
                             alpha=0.6, s=50)
             
-            plt.title(f"{quantitative_columns[i]} vs {quantitative_columns[j]}", fontsize=14)
-            plt.xlabel(quantitative_columns[i], fontsize=12)
-            plt.ylabel(quantitative_columns[j], fontsize=12)
+            # Automatically determine log scaling
+            x_log = needs_log_scale(data_visualization[x_col])
+            y_log = needs_log_scale(data_visualization[y_col])
 
-            # Log scale for Original Price and Discounted Price since they are rupees with a high value range
-            # Apply log scale to X axis if 'Original Price (INR)' or 'Discounted Price (INR)'  is on X axis
-            if quantitative_columns[i] in ['Original Price (INR)', 'Discounted Price (INR)']:
+            title = f"{x_col} vs {y_col}"
+            if x_log:
                 plt.xscale('log')
-            
-            # Apply log scale to Y axis if 'Original Price (INR)' or 'Discounted Price (INR)' is on Y axis
-            if quantitative_columns[j] in ['Original Price (INR)', 'Discounted Price (INR)']:
+                title += " (Log Scale X)"
+            if y_log:
                 plt.yscale('log')
+                title += " (Log Scale Y)"
 
-            plt.savefig(f'{config.VISUALIZATIONS_FOLDER}scatterplot_{quantitative_columns[i]} vs {quantitative_columns[j]}.png')
-            # plt.show()
+            plt.title(title, fontsize=14)
+            plt.xlabel(x_col, fontsize=12)
+            plt.ylabel(y_col, fontsize=12)
+
+            # Save the scatterplot
+            save_path = f'{config.VISUALIZATIONS_FOLDER}{dataset_type}_scatterplot_{x_col.replace(" ", "_").lower()}_vs_{y_col.replace(" ", "_").lower()}.png'
+            plt.savefig(save_path)
+            print(f"Saved scatter plot: {save_path}\n")
+
+            # Close the plot to free memory
             plt.close()
-            print(f"Saved scatter plot: scatterplot_{quantitative_columns[i]} vs {quantitative_columns[j]}.png\n")
 
 
 # %%
@@ -245,17 +300,36 @@ def create_and_save_bar_graphs(data_visualization, qualitative_columns):
 # %%
 # CREATE HISTOGRAMS FOR QUALITATIVE COLUMNS
 
-def create_and_save_histograms(data_visualization):
-    # Plot the distribution of 'Overall Positive Review Percentage' as a histogram
-    plt.figure(figsize=(12, 8))
-    sns.histplot(data=data_visualization, x='Positive Review Percentage', bins=20, kde=True)
+def create_and_save_histograms(data_visualization, quantitative_columns, dataset_type=None):
+    """
+    Create and save histograms for quantitative columns in the dataset.
 
-    plt.title('Distribution of Overall Positive Review Percentage', fontsize=14)
-    plt.xlabel('Overall Positive Review Percentage (%)', fontsize=12)
-    plt.ylabel('Frequency', fontsize=12)
-    plt.close()
-    print("Saved histogram: histogram_positive_review_percentage.png\n")
-    # plt.show()
+    Args:
+        data_visualization (pd.DataFrame): The dataset to visualize.
+        quantitative_columns (list): List of quantitative columns to include in histograms.
+        dataset_type (str): The type of dataset ("store", "review", or "combined"), used for saving outputs.
+    """
+    for col in quantitative_columns:
+        try:
+            # Create histogram for the column
+            plt.figure(figsize=(12, 8))
+            sns.histplot(data=data_visualization, x=col, bins=20, kde=True)
+
+            # Title and labels
+            plt.title(f'Distribution of {col}', fontsize=14)
+            plt.xlabel(col, fontsize=12)
+            plt.ylabel('Frequency', fontsize=12)
+
+            # Save the histogram
+            save_path = f'{config.VISUALIZATIONS_FOLDER}{dataset_type}_histogram_{col.replace(" ", "_").lower()}.png'
+            plt.savefig(save_path)
+            print(f"Saved histogram: {save_path}\n")
+        except Exception as e:
+            print(f"Failed to create histogram for column: {col}. Error: {e}")
+
+        # Close the plot to free memory
+        plt.close()
+
 
 
 def inspect_outliers(data, columns_to_check):
@@ -321,16 +395,31 @@ def check_for_outliers():
     # As a result from the above analysis, we will apply log transformations to the skewed columns.
 
 
-def run_all_data_visualizations(load_and_prepare_data_func):
-    # Load and prepare the data using the provided function
+def run_all_data_visualizations(load_and_prepare_data_func, dataset_type=None):
+    """
+    Generate all visualizations for a given dataset type.
+
+    Args:
+        load_and_prepare_data_func (function): Function to load and prepare data (e.g., `load_and_prepare_store_data`).
+        dataset_type (str): The type of dataset ("store", "review", or "combined").
+    """
+    # Load and prepare the data
     data_visualization, quantitative_columns, qualitative_columns = load_and_prepare_data_func()
-    
-    # Create and save visualizations
-    create_and_save_correlation_matrix(data_visualization, quantitative_columns)  
-    create_and_save_scatterplot(data_visualization, quantitative_columns) 
-    create_and_save_bar_graphs(data_visualization, qualitative_columns) 
-    create_and_save_histograms(data_visualization) 
-    plt.close('all') # Cleanup
+
+    # Create and save correlation matrix
+    create_and_save_correlation_matrix(data_visualization, quantitative_columns, dataset_type=dataset_type)
+
+    # Generate scatter plots
+    create_and_save_scatterplot(data_visualization, quantitative_columns, dataset_type=dataset_type)
+
+    # Generate bar graphs
+    create_and_save_bar_graphs(data_visualization, qualitative_columns)
+
+    # Generate histograms for quantitative data
+    create_and_save_histograms(data_visualization, quantitative_columns, dataset_type=dataset_type)
+
+    # Cleanup plots
+    plt.close("all")
 
 
 def plot_review_creation_histogram():
@@ -373,15 +462,17 @@ def plot_review_creation_histogram():
 def main():
     config.log_section("DATA VISUALIZATION")
 
-    # run_all_data_visualizations(load_and_prepare_store_data) # Visualize store data
+    run_all_data_visualizations(load_and_prepare_store_data, dataset_type='store') # Visualize store data
 
-    # run_all_data_visualizations(load_and_prepare_reviews_data) # Visualize reviews data
+    run_all_data_visualizations(load_and_prepare_reviews_data, dataset_type='review') # Visualize reviews data
+
+    # Optional: Combined clustering dataset visualization
+    # run_all_data_visualizations(load_and_prepare_combined_data, dataset_type="combined")
 
     # Combined data visualizations are not necessary, but it is good to have them for reference
     # check_for_outliers() # Check for outliers in the combined dataset
     # plot_review_creation_histogram() # Plot a histogram of review creation timestamps
 
-    # run_all_data_visualizations(load_and_prepare_combined_data) # Visualize combined clustering data
 
 
 
