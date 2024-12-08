@@ -27,10 +27,10 @@ else:
 print("Downloading NLTK resources... if not already downloaded.")
 # Download NLTK resources if not already done
 nltk.download('stopwords')                   # Download stopwords for text processing
-nltk.download('punkt')                       # Download tokenizer models
+nltk.download('punkt_tab')                       # Download tokenizer models
 nltk.download('wordnet')                     # Download WordNet corpus for lemmatization
 nltk.download('omw-1.4')                     # Download Open Multilingual Wordnet
-nltk.download('averaged_perceptron_tagger')  # Download POS tagger model
+nltk.download('averaged_perceptron_tagger_eng')  # Download POS tagger model
 nltk.download('vader_lexicon')               # Download VADER lexicon for sentiment analysis
 
 # Define stopwords list
