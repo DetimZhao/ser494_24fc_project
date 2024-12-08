@@ -11,66 +11,57 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA   
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.preprocessing import PowerTransformer, StandardScaler
+from umap import UMAP
+# for umap.plot to work: pip install datashader bokeh holoviews scikit-image colorcet
+# not necessary for the code to run, so not included in requirements.txt, but can be added if curious
+from umap.plot import points 
+from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
-from scipy.cluster.hierarchy import dendrogram, linkage
-from scipy.spatial.distance import euclidean, squareform, cdist
-
+from scipy.cluster.hierarchy import dendrogram
 
 import wf_config as config
-from wf_ml_training import plot_elbow
+from wf_ml_training import train_agglomerative_clustering
+from wf_ml_evaluation_utils import silhouette_plot
 
-# TODO Move the training portion to wf_ml_training.py
-def evaluate_agglomerative_clustering(n_clusters=[3,4,5], distance_matrix=None):
-    """
-    Evaluate the Agglomerative Clustering model and generate metrics for multiple cluster sizes.
 
-    Args:
-        n_clusters_list (list): A list of cluster sizes to evaluate.
-        distance_matrix (np.ndarray): Optional precomputed distance matrix for clustering.
+def evaluate_agglomerative_clustering():
     """
+    Evaluate Agglomerative Clustering models by computing metrics and generating visualizations.
+    """
+    # Load training data
+    train_features = np.load(config.TRAIN_FEATURES_NPY)
+
+    # Check for precomputed linkage matrix
+    linkage_matrix_path = os.path.join(config.DATA_PROCESSED_FOLDER, "linkage_matrix.pkl")
+    if os.path.exists(linkage_matrix_path):
+        logging.info(f"Loading precomputed linkage matrix from {linkage_matrix_path}...")
+        with open(linkage_matrix_path, 'rb') as f:
+            linkage_matrix = pickle.load(f)
+    else:
+        linkage_matrix = None
+
+    # Train models and get results, reusing linkage matrix if available
+    n_clusters_list = [3, 4, 5]
+    training_results, distance_matrix, linkage_matrix = train_agglomerative_clustering(
+        train_features=train_features,
+        n_clusters_list=n_clusters_list,
+        column_names=config.COL_NAMES_DIST_FUNC_INPUT,  # Pass the column names if defined in config
+        feature_weights=None,
+        precomputed_linkage_matrix=linkage_matrix  # Pass precomputed linkage matrix
+    )
+
     results = []
 
-    # Compute linkage matrix using the distance matrix
-    linkage_matrix = linkage(squareform(distance_matrix), method="ward")
+    # Evaluate each trained model
+    for n_clusters_value, result in training_results.items():
+        config.log_section(f"Evaluating Agglomerative Clustering with {n_clusters_value} clusters") 
+        model = result["model"]
+        train_labels = result["labels"]
 
-    for n_clusters_value in n_clusters:
-        config.log_section(f"Evaluating Agglomerative Clustering with {n_clusters_value} clusters")
-        logging.info("Loading data for clustering...")
-
-        if distance_matrix is None:
-            # Load training features if no distance matrix is provided
-            train_features_path = config.TRAIN_FEATURES_NPY
-            train_features = np.load(train_features_path)
-        else:
-            train_features = distance_matrix
-
-        # Perform Agglomerative Clustering
-        logging.info(f"Performing Agglomerative Clustering with n_clusters={n_clusters_value}...")
-        if distance_matrix is not None:
-            model = AgglomerativeClustering(n_clusters=n_clusters_value, metric="precomputed", linkage="average")
-        else:
-            model = AgglomerativeClustering(n_clusters=n_clusters_value, metric="euclidean", linkage="ward")
-        train_labels = model.fit_predict(train_features)
-
-        # Evaluate clustering
-        silhouette_train = silhouette_score(train_features, train_labels, metric="precomputed" if distance_matrix is not None else "euclidean")
+        # Compute evaluation metrics
+        silhouette_train = silhouette_score(train_features, train_labels)
         ch_train = calinski_harabasz_score(train_features, train_labels)
-
-        logging.info(f"Silhouette Score on Training Set: {silhouette_train}")
-        logging.info(f"Calinski-Harabasz Index on Training Set: {ch_train}")
-
-        # Save cluster assignments
-        train_labels_path = os.path.join(config.DATA_PROCESSED_FOLDER, f"train_clusters_{n_clusters_value}_agglomerative.pkl")
-        with open(train_labels_path, 'wb') as f:
-            pickle.dump(train_labels, f)
-        logging.info(f"Cluster assignments for training set saved to: {train_labels_path}")
-
-        # Save the trained model
-        model_path = os.path.join(config.MODELS_FOLDER, f"agglomerative_n{n_clusters_value}.pkl")
-        with open(model_path, 'wb') as f:
-            pickle.dump(model, f)
-        logging.info(f"Agglomerative model with n_clusters={n_clusters_value} saved to {model_path}")
 
         # Save evaluation results
         evaluation_results = {
@@ -81,6 +72,14 @@ def evaluate_agglomerative_clustering(n_clusters=[3,4,5], distance_matrix=None):
         results.append(evaluation_results)
         print(f"\nEvaluation Results for {n_clusters_value} clusters: {evaluation_results}\n")
 
+        # Generate silhouette plot
+        silhouette_agglomerative(
+            train_features, 
+            labels=train_labels, 
+            save_path=os.path.join(config.EVALUATION_FOLDER, f'silhouette_plot_agglomerative_{n_clusters_value}.png'),
+            n_clusters=n_clusters_value
+        )
+
     # Save results to summary file
     summary_file_path = os.path.join(config.EVALUATION_FOLDER, f"agglomerative_{config.EVALUATION_SUMMARY_TEXT_FILE}")
     with open(summary_file_path, "w") as f:
@@ -89,7 +88,21 @@ def evaluate_agglomerative_clustering(n_clusters=[3,4,5], distance_matrix=None):
                     f"CH Index={result['calinski_harabasz_score']}\n")
     logging.info(f"Evaluation summary saved to: {summary_file_path}")
 
-    return results, linkage_matrix, train_labels, model
+    # Plot dendrogram
+    plot_dendrogram(
+        linkage_matrix=linkage_matrix,
+        title="Dendrogram for Agglomerative Clustering",
+        label_interval=10,
+        p=10,
+        cluster_thresholds=n_clusters_list
+    )
+
+    # Visualize clusters in 2D
+    visualize_clusters(
+        features=train_features,
+        labels=training_results[n_clusters_list[0]]["labels"],  # Example visualization for the first cluster size
+        title="Hierarchical Cluster Visualization"
+    )
 
 
 def plot_dendrogram(linkage_matrix, title="Dendrogram for Hierarchical Clustering", label_interval=10, p=10, cluster_thresholds=None):
@@ -140,11 +153,10 @@ def plot_dendrogram(linkage_matrix, title="Dendrogram for Hierarchical Clusterin
     save_path = os.path.join(config.EVALUATION_FOLDER, "Hierarchical_Clustering_Dendrogram.png")
     plt.savefig(save_path)
     print(f"Dendrogram saved to: {save_path}")
-    plt.show()
+    # plt.show()
     plt.close()
 
 
-# TODO: This might be broken, check it
 def visualize_clusters(features, labels, title="Hierarchical Cluster Visualization"):
     """
     Visualize the clusters in 2D using PCA.
@@ -154,14 +166,17 @@ def visualize_clusters(features, labels, title="Hierarchical Cluster Visualizati
         labels (np.ndarray): The cluster labels.
         title (str): The title of the plot.
     """
-
-    # Reduce dimensions using PCA
     if features is None or len(features) == 0:
         logging.error("Features array is empty or None. Cannot perform PCA.")
         return
 
+    # Standardize features before PCA
+    scaler = StandardScaler()
+    standardized_features = scaler.fit_transform(features)
+
+    # Reduce dimensions using PCA
     pca = PCA(n_components=2)
-    reduced_features = pca.fit_transform(features)
+    reduced_features = pca.fit_transform(standardized_features)
 
     # Create a DataFrame for seaborn
     df = pd.DataFrame(reduced_features, columns=["PCA1", "PCA2"])
@@ -169,8 +184,7 @@ def visualize_clusters(features, labels, title="Hierarchical Cluster Visualizati
 
     # Scatter plot using seaborn
     plt.figure(figsize=(10, 7))
-    df["Cluster"] = df["Cluster"].astype('category')
-    sns.scatterplot(data=df, x="PCA1", y="PCA2", hue="Cluster", style="Cluster", palette=sns.color_palette('viridis', df["Cluster"].nunique()), s=100, alpha=0.7)
+    sns.scatterplot(data=df, x="PCA1", y="PCA2", hue="Cluster", palette=sns.color_palette('viridis', df["Cluster"].nunique()), s=100, alpha=0.7)
     plt.title(title)
     plt.xlabel("PCA Component 1")
     plt.ylabel("PCA Component 2")
@@ -180,257 +194,111 @@ def visualize_clusters(features, labels, title="Hierarchical Cluster Visualizati
     plt.close()
 
 
-def custom_distance(record1, record2, column_names=None, feature_weights=None, start_euclidean_index=124):
+def silhouette_agglomerative(features, labels, save_path=None, n_clusters=None):
     """
-    Computes a custom distance metric between two records.
+    Generate silhouette plot for Agglomerative Clustering.
 
     Args:
-        record1 (np.ndarray): The first record (row from the dataset).
-        record2 (np.ndarray): The second record (row from the dataset).
-        column_names (list): List of column names for the features (optional).
-        feature_weights (dict): A dictionary mapping feature names to weights for custom distances (optional).
-        start_euclidean_index (int): The index at which Euclidean-only features (e.g., embeddings) start.
-
-    Notes:
-        - 124 is the default index for embeddings since that is based on the shape of the data.  
-
-    Returns:
-        float: The calculated distance between record1 and record2.
+        features (np.ndarray): The dataset used for clustering.
+        labels (np.ndarray): The cluster labels.
+        save_path (str): Path to save the plot (optional).
+        n_clusters (int): Number of clusters (optional).
     """
-    # Initialize distance
-    distance = 0.0
-
-    # Custom handling for named features (if provided)
-    if column_names:
-        numeric_features = [
-            'original_price_INR', 'percentage_of_original_price', 'discounted_price_INR',
-            'dlc_available', 'awards_count', 'overall_positive_review_percentage',
-            'overall_review_count', 'mean_compound', 'mean_positive', 'mean_negative',
-            'mean_neutral', 'mean_engagement_ratio', 'mean_playtime_percentile_review',
-            'mean_playtime_percentile_total', 'mean_votes_up', 'mean_votes_funny',
-            'mean_weighted_vote_score', 'median_playtime_at_review', 'mean_review_length',
-            'mean_word_count'
-        ]
-        boolean_features = ['age_restricted']
-
-        # Process numeric and boolean features
-        for feature in numeric_features:
-            index = column_names.index(feature)
-            weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
-            distance += weight * (record1[index] - record2[index]) ** 2
-
-        for feature in boolean_features:
-            index = column_names.index(feature)
-            weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
-            distance += weight * (record1[index] != record2[index])  # Binary distance
-
-    # Compute Euclidean distance for embeddings (from start_euclidean_index onward)
-    distance += np.sum((record1[start_euclidean_index:] - record2[start_euclidean_index:]) ** 2)
-
-    return np.sqrt(distance)
+    labels = labels.astype(int)
+    title = f"Silhouette Plot for Agglomerative Clustering (n_clusters={n_clusters})"
+    silhouette_avg = silhouette_plot(features, labels, title=title, save_path=save_path)
+    return silhouette_avg
 
 
-
-
-def compute_distance_matrix(features, feature_weights=None, column_names=None):
+def visualize_umap_point_cloud(features, labels, custom_distance_matrix=None, output_folder="./umap_plots",
+                           n_neighbors_list=[5, 10, 30], min_dist_list=[0.05, 0.1, 0.2], spread_list=[1.0, 1.5],
+                           n_components=2):
     """
-    Compute a pairwise distance matrix using a custom distance function.
+    Perform UMAP with preprocessing, dimensionality reduction, and parameter optimization.
 
     Args:
-        features (np.ndarray): The input feature matrix.
-        feature_weights (dict): A dictionary mapping feature names to weights for custom distances (optional).
-        column_names (list): List of column names for the features (optional). If None, assume embeddings start dynamically.
+        features (np.ndarray): High-dimensional feature array.
+        labels (np.ndarray): Cluster labels.
+        custom_distance_matrix (np.ndarray): Precomputed distance matrix (optional).
+        output_folder (str): Directory to save plots.
+        n_neighbors_list (list): List of n_neighbors values to iterate over.
+        min_dist_list (list): List of min_dist values to iterate over.
+        spread_list (list): List of spread values to iterate over.
+        n_components (int): Number of UMAP components (3 would be for 3D but it would need to be plotted with matplotlib or plotpy).
 
-    Returns:
-        np.ndarray: A 2D distance matrix.
     """
-    config.log_section("Computing Pairwise Distance Matrix")
-    n_samples, n_features = features.shape
+    # Preprocessing (Optional Scaling)
+    transformer = PowerTransformer()  # Use PowerTransformer for skewed data
+    scaled_features = transformer.fit_transform(features)
+    print("Features scaled using PowerTransformer.")
 
-    # Dynamically set start index for embeddings if column names are missing
-    if column_names:
-        start_euclidean_index = len(column_names)  # Embeddings start where named features end
+    # Dimensionality Reduction
+    if scaled_features.shape[1] > 100:  # Reduce dimensions only if features are very high-dimensional
+        svd = TruncatedSVD(n_components=100, random_state=47)
+        reduced_features = svd.fit_transform(scaled_features)
+        print(f"Reduced features shape: {reduced_features.shape}")
     else:
-        start_euclidean_index = 124  # Default if no column names are provided
+        reduced_features = scaled_features
 
-    logging.info(f"Start index for Euclidean distance features: {start_euclidean_index}")
+    # Create output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
 
-    # Initialize distance matrix
-    distance_matrix = np.empty((n_samples, n_samples))
+    # Iterate through UMAP parameters
+    for n_neighbors in n_neighbors_list:
+        for min_dist in min_dist_list:
+            for spread in spread_list:
+                print(f"Running UMAP with n_neighbors={n_neighbors}, min_dist={min_dist}, spread={spread}, n_components={n_components}")
 
-    # Compute pairwise distances
-    logging.info("Computing custom distances...")
-    for i in range(n_samples):
-        for j in range(i + 1, n_samples):  # Upper triangle computation
-            distance_matrix[i, j] = custom_distance(
-                record1=features[i],
-                record2=features[j],
-                column_names=column_names,
-                feature_weights=feature_weights,
-                start_euclidean_index=start_euclidean_index,
-            )
-            distance_matrix[j, i] = distance_matrix[i, j]  # Symmetric
+                # UMAP Fitting
+                if custom_distance_matrix is not None:
+                    umap = UMAP(metric="precomputed", n_components=n_components, random_state=47)
+                    umap.fit(custom_distance_matrix)
+                else:
+                    umap = UMAP(
+                        n_neighbors=n_neighbors,
+                        min_dist=min_dist,
+                        spread=spread,
+                        n_components=n_components,
+                        metric="euclidean",
+                        random_state=47,
+                        low_memory=True
+                    )
+                    umap.fit(reduced_features)
 
-    logging.info(f"Distance matrix completed. Shape: {distance_matrix.shape}")
-    return distance_matrix
+                # Plot UMAP Points
+                try:
+                    points(umap, labels=labels, theme="viridis")
+                    plt.title(f"UMAP: n_neighbors={n_neighbors}, min_dist={min_dist}, spread={spread}")
+                    # Save the plot
+                    save_path = os.path.join(
+                        output_folder,
+                        f"UMAP_nn{n_neighbors}_md{min_dist}_sp{spread}_comp{n_components}.png"
+                    )
+                    plt.savefig(save_path)
+                    print(f"Saved UMAP point cloud plot to: {save_path}")
+                    plt.close()
+                except Exception as e:
+                    print(f"Failed to plot UMAP points for n_neighbors={n_neighbors}, min_dist={min_dist}, spread={spread}: {e}")
+
+    print("UMAP visualizations completed.")
 
 
 def main():
-    # Load the training dataset
-    train_features_path = config.TRAIN_FEATURES_NPY
-    train_features = np.load(train_features_path)  # Use standardized training features
-
-    # Column names of combined dataset features for custom distance computation
-    column_names = [
-        'original_price_INR',
-        'percentage_of_original_price',
-        'discounted_price_INR',
-        'dlc_available',
-        'age_restricted',
-        'awards_count',
-        'overall_positive_review_percentage',
-        'overall_review_count',
-        'overall_review_encoded',
-        'mean_compound',
-        'mean_positive',
-        'mean_negative',
-        'mean_neutral',
-        'mean_engagement_ratio',
-        'mean_playtime_percentile_review',
-        'mean_playtime_percentile_total',
-        'mean_votes_up',
-        'mean_votes_funny',
-        'mean_weighted_vote_score',
-        'median_playtime_at_review',
-        'mean_review_length',
-        'mean_word_count',
-        'genres_tfidf_access',
-        'genres_tfidf_action',
-        'genres_tfidf_adventure',
-        'genres_tfidf_animation',
-        'genres_tfidf_audio',
-        'genres_tfidf_casual',
-        'genres_tfidf_design',
-        'genres_tfidf_development',
-        'genres_tfidf_early',
-        'genres_tfidf_education',
-        'genres_tfidf_free',
-        'genres_tfidf_game',
-        'genres_tfidf_illustration',
-        'genres_tfidf_indie',
-        'genres_tfidf_massively',
-        'genres_tfidf_modeling',
-        'genres_tfidf_movie',
-        'genres_tfidf_multiplayer',
-        'genres_tfidf_play',
-        'genres_tfidf_production',
-        'genres_tfidf_publishing',
-        'genres_tfidf_racing',
-        'genres_tfidf_rpg',
-        'genres_tfidf_simulation',
-        'genres_tfidf_software',
-        'genres_tfidf_sports',
-        'genres_tfidf_strategy',
-        'genres_tfidf_to',
-        'genres_tfidf_training',
-        'genres_tfidf_utilities',
-        'genres_tfidf_video',
-        'genres_tfidf_web',
-        'categories_tfidf_about',
-        'categories_tfidf_achievements',
-        'categories_tfidf_anti',
-        'categories_tfidf_app',
-        'categories_tfidf_available',
-        'categories_tfidf_captions',
-        'categories_tfidf_cards',
-        'categories_tfidf_cheat',
-        'categories_tfidf_cloud',
-        'categories_tfidf_co',
-        'categories_tfidf_collectibles',
-        'categories_tfidf_commentary',
-        'categories_tfidf_controller',
-        'categories_tfidf_cross',
-        'categories_tfidf_editor',
-        'categories_tfidf_enabled',
-        'categories_tfidf_family',
-        'categories_tfidf_features',
-        'categories_tfidf_game',
-        'categories_tfidf_hdr',
-        'categories_tfidf_hl2',
-        'categories_tfidf_in',
-        'categories_tfidf_includes',
-        'categories_tfidf_is',
-        'categories_tfidf_lan',
-        'categories_tfidf_leaderboards',
-        'categories_tfidf_learning',
-        'categories_tfidf_level',
-        'categories_tfidf_limited',
-        'categories_tfidf_mmo',
-        'categories_tfidf_mods',
-        'categories_tfidf_multiplayer',
-        'categories_tfidf_notifications',
-        'categories_tfidf_on',
-        'categories_tfidf_online',
-        'categories_tfidf_only',
-        'categories_tfidf_op',
-        'categories_tfidf_phone',
-        'categories_tfidf_platform',
-        'categories_tfidf_play',
-        'categories_tfidf_player',
-        'categories_tfidf_profile',
-        'categories_tfidf_purchases',
-        'categories_tfidf_pvp',
-        'categories_tfidf_remote',
-        'categories_tfidf_require',
-        'categories_tfidf_screen',
-        'categories_tfidf_sdk',
-        'categories_tfidf_shared',
-        'categories_tfidf_sharing',
-        'categories_tfidf_single',
-        'categories_tfidf_source',
-        'categories_tfidf_split',
-        'categories_tfidf_stats',
-        'categories_tfidf_steam',
-        'categories_tfidf_steamvr',
-        'categories_tfidf_support',
-        'categories_tfidf_supported',
-        'categories_tfidf_tablet',
-        'categories_tfidf_this',
-        'categories_tfidf_together',
-        'categories_tfidf_tracked',
-        'categories_tfidf_trading',
-        'categories_tfidf_turn',
-        'categories_tfidf_tv',
-        'categories_tfidf_valve',
-        'categories_tfidf_vr',
-        'categories_tfidf_workshop'
-    ] 
-
-    # Compute custom distance matrix
-    logging.info("Computing custom distance matrix...")
-    distance_matrix = compute_distance_matrix(features=train_features, column_names=column_names)
-
     # Evaluate Agglomerative Clustering
-    evaluation_results, linkage_matrix, train_labels, model = evaluate_agglomerative_clustering(
-        distance_matrix=distance_matrix
-    )
-    
-    # Plot elbow 
-    plot_elbow(features=distance_matrix, title_prefix='Agglomerative')
+    evaluate_agglomerative_clustering()
 
-    # Plot Dendrogram
-    plot_dendrogram(linkage_matrix=linkage_matrix, 
-                    label_interval=10, 
-                    p=75, 
-                    cluster_thresholds = [3, 4, 5, 6, 7, 8, 9, 10]
-                    )
-
-    # Visualize clusters in 2D
-    visualize_clusters(
-        features=train_features,  # Use original feature space for PCA visualization
-        labels=train_labels, 
-    )
-
+    # Visualize UMAP point cloud, commented out since it's not that meaningful
+    # output_folder = f"{config.EVALUATION_FOLDER}umap_plots/"
+    # visualize_umap_point_cloud(
+    #     features=train_features,
+    #     labels=train_labels,
+    #     custom_distance_matrix=distance_matrix,  # Or none too
+    #     output_folder=output_folder,
+    #     n_neighbors_list=[5, 10, 30],
+    #     min_dist_list=[0.05, 0.1, 0.2],
+    #     spread_list=[1.0, 1.5],
+    #     n_components=2
+    # )
 
 if __name__ == "__main__":
     main()

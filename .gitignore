@@ -61,3 +61,6 @@ tests/
 models/ 
 
 # TODO: when preparing for final submission, remove the ignores for visuals and models
+
+# Ignore Umap plots, they weren't very meaningful and just for exploration
+evaluation/umap_plots/

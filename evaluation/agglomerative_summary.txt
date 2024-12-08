@@ -1,3 +1,3 @@
-n_clusters=3, Silhouette Score=0.5405955910181854, CH Index=34.86455369109491
-n_clusters=4, Silhouette Score=0.4273048061396525, CH Index=27.836159963935224
-n_clusters=5, Silhouette Score=0.36794249925031447, CH Index=28.40901368448598
+n_clusters=3, Silhouette Score=0.5252038519218324, CH Index=9.280199253002731
+n_clusters=4, Silhouette Score=0.406671790456969, CH Index=7.808531685331409
+n_clusters=5, Silhouette Score=0.3455102638776045, CH Index=8.01626021909757

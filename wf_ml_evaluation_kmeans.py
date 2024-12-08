@@ -15,6 +15,7 @@ from sklearn.decomposition import PCA
 
 from wf_ml_training import train_kmeans_model, plot_elbow  # Import the training function and elbow plot function
 from wf_ml_prediction import predict_input # Import the prediction function
+from wf_ml_evaluation_utils import silhouette_plot  # Import the silhouette plot function
 import wf_config as config
 
 
@@ -143,6 +144,14 @@ def train_and_evaluate_alternative_models(k_values=[3, 4, 5]):
             "ch_train": ch_train
         })
 
+        # Generate silhouette plot
+        silhouette_kmeans(
+            train_features, 
+            labels=train_labels,
+            save_path=os.path.join(config.EVALUATION_FOLDER, f'silhouette_plot_k{k}.png'),
+            k_value=k
+            ) 
+
     # Save results to summary file
     summary_file_path = os.path.join(config.EVALUATION_FOLDER, f"KMeans_{config.EVALUATION_SUMMARY_TEXT_FILE}")
     with open(summary_file_path, "w") as f:
@@ -254,6 +263,22 @@ def experiment_with_selected_features(model_path, selected_features, feature_nam
         print(f"Predicted clusters: {clusters}")
 
     return results
+
+
+def silhouette_kmeans(features, labels, save_path=None, k_value=None):
+    """
+    Generate silhouette plot for KMeans clustering.
+
+    Args:
+        features (np.ndarray): The dataset used for clustering.
+        labels (np.ndarray): Cluster assignments.
+        save_path (str): Path to save the plot (optional).
+        k_value (int): Number of clusters (optional).
+    """
+    labels = labels.astype(int)
+    title = f"Silhouette Plot for KMeans (n_clusters={k_value})"
+    silhouette_avg = silhouette_plot(features, labels, title=title, save_path=save_path)
+    return silhouette_avg
 
 
 def main():

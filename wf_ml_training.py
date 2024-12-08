@@ -10,8 +10,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+# Kmmeans clustering
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+# Agglomerative clustering
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import linkage
+from scipy.spatial.distance import squareform
 
 import wf_config as config  
 
@@ -184,6 +188,183 @@ def train_kmeans_model(k, train_features):
 ##############################################################################################################
 # Agglomerative Clustering
 ##############################################################################################################
+
+
+def train_agglomerative_clustering(train_features, n_clusters_list, column_names=None, feature_weights=None, precomputed_linkage_matrix=None):
+    """
+    Train Agglomerative Clustering models for multiple cluster sizes and save the results.
+
+    Args:
+        train_features (np.ndarray): The input feature matrix.
+        n_clusters_list (list): A list of cluster sizes to train models for.
+        column_names (list): List of column names for the features (optional).
+        feature_weights (dict): A dictionary mapping feature names to weights (optional).
+        precomputed_linkage_matrix (np.ndarray): Optional precomputed linkage matrix to reuse.
+
+    Returns:
+        dict: A dictionary with models and cluster labels for each `n_clusters`.
+    """
+    results = {}
+
+    # Check if distance matrix is already computed
+    distance_matrix_path = os.path.join(config.DATA_PROCESSED_FOLDER, "distance_matrix.pkl")
+    if os.path.exists(distance_matrix_path):
+        logging.info(f"Loading precomputed distance matrix from {distance_matrix_path}...")
+        with open(distance_matrix_path, 'rb') as f:
+            distance_matrix = pickle.load(f)
+    else:
+        # Compute custom distance matrix
+        logging.info("Computing custom distance matrix...")
+        distance_matrix = compute_distance_matrix(features=train_features, column_names=column_names, feature_weights=feature_weights)
+        distance_matrix = (distance_matrix + distance_matrix.T) / 2  # Symmetrize the matrix
+        np.fill_diagonal(distance_matrix, 0)  # Ensure diagonal is zero
+
+        # Save the computed distance matrix
+        with open(distance_matrix_path, 'wb') as f:
+            pickle.dump(distance_matrix, f)
+        logging.info(f"Distance matrix saved to: {distance_matrix_path}")
+
+    # Verify distance matrix validity
+    assert np.allclose(distance_matrix, distance_matrix.T), "Distance matrix is not symmetric!"
+    assert np.all(np.diagonal(distance_matrix) == 0), "Diagonal values are not zero!"
+
+    # Compute or reuse linkage matrix
+    if precomputed_linkage_matrix is None:
+        linkage_matrix = linkage(squareform(distance_matrix), method="ward")
+
+        # Save the linkage matrix for future use
+        linkage_matrix_path = os.path.join(config.DATA_PROCESSED_FOLDER, "linkage_matrix.pkl")
+        with open(linkage_matrix_path, 'wb') as f:
+            pickle.dump(linkage_matrix, f)
+        logging.info(f"Linkage matrix saved to: {linkage_matrix_path}")
+    else:
+        linkage_matrix = precomputed_linkage_matrix
+
+    for n_clusters in n_clusters_list:
+        model_path = os.path.join(config.MODELS_FOLDER, f"agglomerative_n{n_clusters}.pkl")
+        train_labels_path = os.path.join(config.DATA_PROCESSED_FOLDER, f"train_clusters_{n_clusters}_agglomerative.pkl")
+
+        # Check if the model and cluster assignments already exist
+        if os.path.exists(model_path) and os.path.exists(train_labels_path):
+            logging.info(f"Loading precomputed model and labels for {n_clusters} clusters...")
+            with open(model_path, 'rb') as f:
+                model = pickle.load(f)
+            with open(train_labels_path, 'rb') as f:
+                cluster_labels = pickle.load(f)
+        else:
+            logging.info(f"Training Agglomerative Clustering model with {n_clusters} clusters...")
+
+            # Train the model
+            model = AgglomerativeClustering(n_clusters=n_clusters, metric="precomputed", linkage="average")
+            cluster_labels = model.fit_predict(distance_matrix)
+
+            # Save cluster assignments
+            with open(train_labels_path, 'wb') as f:
+                pickle.dump(cluster_labels, f)
+            logging.info(f"Cluster assignments for {n_clusters} clusters saved to: {train_labels_path}")
+
+            # Save the trained model
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+            logging.info(f"Agglomerative model with {n_clusters} clusters saved to: {model_path}")
+
+        # Store results
+        results[n_clusters] = {"model": model, "labels": cluster_labels}
+
+    return results, distance_matrix, linkage_matrix
+
+
+def custom_distance(record1, record2, column_names=None, feature_weights=None, start_euclidean_index=124):
+    """
+    Computes a custom distance metric between two records.
+
+    Args:
+        record1 (np.ndarray): The first record (row from the dataset).
+        record2 (np.ndarray): The second record (row from the dataset).
+        column_names (list): List of column names for the features (optional).
+        feature_weights (dict): A dictionary mapping feature names to weights for custom distances (optional).
+        start_euclidean_index (int): The index at which Euclidean-only features (e.g., embeddings) start.
+
+    Notes:
+        - 124 is the default index for embeddings since that is based on the shape of the data.  
+
+    Returns:
+        float: The calculated distance between record1 and record2.
+    """
+    # Initialize distance
+    distance = 0.0
+
+    # Custom handling for named features (if provided)
+    if column_names:
+        numeric_features = [
+            'original_price_INR', 'percentage_of_original_price', 'discounted_price_INR',
+            'dlc_available', 'awards_count', 'overall_positive_review_percentage',
+            'overall_review_count', 'mean_compound', 'mean_positive', 'mean_negative',
+            'mean_neutral', 'mean_engagement_ratio', 'mean_playtime_percentile_review',
+            'mean_playtime_percentile_total', 'mean_votes_up', 'mean_votes_funny',
+            'mean_weighted_vote_score', 'median_playtime_at_review', 'mean_review_length',
+            'mean_word_count'
+        ]
+        boolean_features = ['age_restricted']
+
+        # Process numeric and boolean features
+        for feature in numeric_features:
+            index = column_names.index(feature)
+            weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
+            distance += weight * (record1[index] - record2[index]) ** 2
+
+        for feature in boolean_features:
+            index = column_names.index(feature)
+            weight = feature_weights.get(feature, 1.0) if feature_weights else 1.0
+            distance += weight * (record1[index] != record2[index])  # Binary distance
+
+    # Compute Euclidean distance for embeddings (from start_euclidean_index onward)
+    distance += np.sum((record1[start_euclidean_index:] - record2[start_euclidean_index:]) ** 2)
+
+    return np.sqrt(distance)
+
+
+def compute_distance_matrix(features, feature_weights=None, column_names=None):
+    """
+    Compute a pairwise distance matrix using a custom distance function.
+
+    Args:
+        features (np.ndarray): The input feature matrix.
+        feature_weights (dict): A dictionary mapping feature names to weights for custom distances (optional).
+        column_names (list): List of column names for the features (optional). If None, assume embeddings start dynamically.
+
+    Returns:
+        np.ndarray: A 2D distance matrix.
+    """
+    config.log_section("Computing Pairwise Distance Matrix")
+    n_samples, n_features = features.shape
+
+    # Dynamically set start index for embeddings if column names are missing
+    if column_names:
+        start_euclidean_index = len(column_names)  # Embeddings start where named features end
+    else:
+        start_euclidean_index = 124  # Default if no column names are provided
+
+    logging.info(f"Start index for Euclidean distance features: {start_euclidean_index}")
+
+    # Initialize distance matrix
+    distance_matrix = np.empty((n_samples, n_samples))
+
+    # Compute pairwise distances
+    logging.info("Computing custom distances...")
+    for i in range(n_samples):
+        for j in range(i + 1, n_samples):  # Upper triangle computation
+            distance_matrix[i, j] = custom_distance(
+                record1=features[i],
+                record2=features[j],
+                column_names=column_names,
+                feature_weights=feature_weights,
+                start_euclidean_index=start_euclidean_index,
+            )
+            distance_matrix[j, i] = distance_matrix[i, j]  # Symmetric
+
+    logging.info(f"Distance matrix completed. Shape: {distance_matrix.shape}")
+    return distance_matrix
 
 
 def main():
