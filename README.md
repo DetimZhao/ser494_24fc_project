@@ -3,6 +3,10 @@ This repository contains files for the individual course project in SER494: Data
 
 It was cleared by course staff (R. Acuna) for public release on 1/12/2025.
 
+# Paper
+
+To check out the paper refer to: [Paper.pdf](/Paper.pdf) in the content root. 
+
 # Steps to download and run project:
 ## Setup
 1. Clone the repository:
